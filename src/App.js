@@ -803,16 +803,28 @@ function VoiceJournal() {
   const [browserSupported, setBrowserSupported] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [voiceGender, setVoiceGender] = useState('female');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const { darkMode } = useTheme();
   
   const recognitionRef = useRef(null);
 
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    setIsMobile(checkMobile);
+  }, []);
+
   // Monitor online/offline status
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      setErrorMessage('');
+    };
     const handleOffline = () => {
       setIsOnline(false);
       if (isRecording) stopRecording();
+      setErrorMessage('❌ You are offline. Voice recognition needs internet connection.');
     };
 
     window.addEventListener('online', handleOnline);
@@ -840,25 +852,28 @@ function VoiceJournal() {
     }
   }, []);
 
-  // Initialize speech recognition
+  // Initialize speech recognition (desktop only)
   useEffect(() => {
+    if (isMobile) {
+      return; // Skip on mobile, use native keyboard input instead
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
     if (!SpeechRecognition) {
       setBrowserSupported(false);
+      setErrorMessage('❌ Speech Recognition not supported in this browser. Please use Chrome or Edge.');
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    
-    // Detect page language (set by Google Translate)
-    const pageLang = document.documentElement.lang || 'en';
-    recognition.lang = pageLang;
+    recognition.lang = 'en-US';
 
     recognition.onstart = () => {
-      console.log('Speech recognition started');
       setIsRecording(true);
+      setErrorMessage('');
     };
 
     recognition.onresult = (event) => {
@@ -869,18 +884,30 @@ function VoiceJournal() {
           finalTranscript += transcriptPiece + ' ';
         }
       }
-      setTranscript(prev => prev + finalTranscript);
+      if (finalTranscript) {
+        setTranscript(prev => prev + finalTranscript);
+      }
     };
 
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
-      if (event.error === 'no-speech') return;
       setIsRecording(false);
-      alert(`Error: ${event.error}`);
+      
+      if (event.error === 'network') {
+        setErrorMessage('🌐 Network error: Cannot connect to speech service.');
+      } else if (event.error === 'no-speech') {
+        setErrorMessage('🎤 No speech detected.');
+        setTimeout(() => setErrorMessage(''), 3000);
+      } else if (event.error === 'not-allowed') {
+        setErrorMessage('❌ Microphone access denied.');
+      } else if (event.error === 'aborted') {
+        return;
+      } else {
+        setErrorMessage(`❌ Error: ${event.error}`);
+      }
     };
 
     recognition.onend = () => {
-      console.log('Speech recognition ended');
       setIsRecording(false);
     };
 
@@ -888,33 +915,48 @@ function VoiceJournal() {
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Already stopped
+        }
       }
     };
-  }, []);
+  }, [isMobile]);
 
   const startRecording = async () => {
     if (!navigator.onLine) {
-      alert('You are offline. Speech recognition requires internet.');
+      setErrorMessage('❌ You are offline.');
       return;
     }
+    
     if (!recognitionRef.current) {
-      alert('Speech recognition not supported. Please use Chrome or Edge.');
+      setErrorMessage('❌ Speech recognition not available.');
       return;
     }
+
+    if (isRecording) {
+      return;
+    }
+
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setTranscript('');
+      setErrorMessage('');
       recognitionRef.current.start();
     } catch (error) {
       console.error('Microphone error:', error);
-      alert('Could not access microphone.');
+      setErrorMessage('❌ Could not access microphone.');
     }
   };
 
   const stopRecording = () => {
     if (recognitionRef.current && isRecording) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Error stopping recognition:', e);
+      }
     }
   };
 
@@ -933,6 +975,7 @@ function VoiceJournal() {
     setEntries(updatedEntries);
     localStorage.setItem('voiceJournalEntries', JSON.stringify(updatedEntries));
     setTranscript('');
+    setErrorMessage('');
   };
 
   const deleteEntry = (id) => {
@@ -941,12 +984,10 @@ function VoiceJournal() {
     localStorage.setItem('voiceJournalEntries', JSON.stringify(updatedEntries));
   };
 
-  // NEW: Reads translated text from DOM
   const speakEntry = (entryId) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       
-      // Get the actual displayed text (which might be translated)
       const entryElement = document.getElementById(`entry-text-${entryId}`);
       const displayedText = entryElement ? entryElement.innerText : '';
       
@@ -959,12 +1000,8 @@ function VoiceJournal() {
       utterance.rate = 0.9;
       utterance.pitch = voiceGender === 'female' ? 1.2 : 1.0;
       
-      // Detect language from page (Google Translate sets this)
       const pageLang = document.documentElement.lang || 'en';
       utterance.lang = pageLang;
-      
-      console.log('🗣️ Speaking in language:', pageLang);
-      console.log('📝 Text to speak:', displayedText.substring(0, 50) + '...');
       
       const setVoice = () => {
         const voices = window.speechSynthesis.getVoices();
@@ -997,9 +1034,6 @@ function VoiceJournal() {
         
         if (selectedVoice) {
           utterance.voice = selectedVoice;
-          console.log('✅ Using voice:', selectedVoice.name);
-        } else {
-          console.log('⚠️ No specific voice found, using default');
         }
         
         window.speechSynthesis.speak(utterance);
@@ -1026,13 +1060,13 @@ function VoiceJournal() {
           Voice Journal
         </h1>
         <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
-          Express your thoughts through voice - we'll transcribe them for you
+          Express your thoughts through voice
         </p>
         
         {/* Voice Gender Selector */}
         <div className="flex justify-center items-center gap-2">
           <Volume2 className="w-5 h-5 text-pink-600" />
-          <label className="font-medium">Voice Gender:</label>
+          <label className="font-medium">Playback Voice:</label>
           <select
             value={voiceGender}
             onChange={(e) => handleVoiceGenderChange(e.target.value)}
@@ -1044,78 +1078,145 @@ function VoiceJournal() {
         </div>
       </div>
 
-      {/* Online/Offline Status */}
-      <div className={`flex items-center justify-center gap-2 p-3 rounded-lg ${
-        isOnline 
-          ? 'bg-green-50 border-2 border-green-300' 
-          : 'bg-red-50 border-2 border-red-400'
-      }`}>
-        {isOnline ? (
-          <>
-            <Wifi className="w-5 h-5 text-green-600" />
-            <span className="text-green-800 font-medium">Connected - Ready to record</span>
-          </>
-        ) : (
-          <>
-            <WifiOff className="w-5 h-5 text-red-600" />
-            <span className="text-red-800 font-medium">Offline - Internet required</span>
-          </>
-        )}
-      </div>
+      {/* Mobile Instructions */}
+      {isMobile && (
+        <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-5">
+          <div className="flex items-start gap-3">
+            <Mic className="w-8 h-8 text-blue-600 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="font-bold text-blue-900 mb-2 text-lg">📱 Using Voice on Mobile</h3>
+              <p className="text-blue-800 mb-3">
+                To use voice input on your phone:
+              </p>
+              <ol className="text-sm text-blue-700 space-y-2 list-decimal ml-5">
+                <li><strong>Tap the text box below</strong></li>
+                <li><strong>Your keyboard will appear</strong></li>
+                <li><strong>Tap the 🎤 microphone icon</strong> on your keyboard</li>
+                <li><strong>Speak</strong> - your words will appear as text!</li>
+                <li><strong>Tap "Save"</strong> when done</li>
+              </ol>
+              <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  💡 <strong>Tip:</strong> The microphone icon is usually next to the spacebar on your mobile keyboard (iOS/Android). If you don't see it, check your keyboard settings!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Online/Offline Status */}
+      {!isMobile && (
+        <div className={`flex items-center justify-center gap-2 p-3 rounded-lg ${
+          isOnline 
+            ? 'bg-green-50 border-2 border-green-300' 
+            : 'bg-red-50 border-2 border-red-400'
+        }`}>
+          {isOnline ? (
+            <>
+              <Wifi className="w-5 h-5 text-green-600" />
+              <span className="text-green-800 font-medium">Connected - Ready to record</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-5 h-5 text-red-600" />
+              <span className="text-red-800 font-medium">Offline - Internet required</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Error Message Display */}
+      {errorMessage && (
+        <div className="bg-red-50 border-2 border-red-400 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-red-800 font-medium">{errorMessage}</p>
+          </div>
+        </div>
+      )}
 
       {/* Recording Card */}
       <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 space-y-6`}>
-        <div className="text-center">
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={!browserSupported || !isOnline}
-            className={`w-32 h-32 rounded-full flex items-center justify-center transition-all transform ${
-              !browserSupported || !isOnline
-                ? 'bg-gray-300 cursor-not-allowed'
-                : isRecording
-                ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-110'
-                : 'bg-purple-500 hover:bg-purple-600 hover:scale-105'
-            } shadow-2xl`}
-          >
-            {isRecording ? (
-              <MicOff className="w-16 h-16 text-white" />
-            ) : (
-              <Mic className="w-16 h-16 text-white" />
-            )}
-          </button>
-          <p className={`mt-4 text-lg font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            {isRecording ? '🎤 Recording... Click to stop' : 'Click microphone to start'}
-          </p>
-          {isRecording && (
-            <p className="mt-2 text-sm text-purple-600 animate-pulse">
-              Listening... Speak clearly
+        {/* Desktop Microphone Button */}
+        {!isMobile && (
+          <div className="text-center">
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={!browserSupported || !isOnline}
+              className={`w-32 h-32 rounded-full flex items-center justify-center transition-all transform ${
+                !browserSupported || !isOnline
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : isRecording
+                  ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-110'
+                  : 'bg-purple-500 hover:bg-purple-600 hover:scale-105'
+              } shadow-2xl`}
+            >
+              {isRecording ? (
+                <MicOff className="w-16 h-16 text-white" />
+              ) : (
+                <Mic className="w-16 h-16 text-white" />
+              )}
+            </button>
+            <p className={`mt-4 text-lg font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              {isRecording ? '🎤 Recording... Click to stop' : 'Click microphone to start'}
             </p>
-          )}
-        </div>
+            {isRecording && (
+              <p className="mt-2 text-sm text-purple-600 animate-pulse">
+                Listening... Speak clearly
+              </p>
+            )}
+          </div>
+        )}
 
-        {/* Transcript Area */}
+        {/* Mobile Voice Prompt */}
+        {isMobile && (
+          <div className="text-center py-4">
+            <div className="inline-flex items-center gap-3 bg-purple-100 px-6 py-4 rounded-xl">
+              <Mic className="w-8 h-8 text-purple-600" />
+              <div className="text-left">
+                <p className="font-bold text-purple-900">Tap the text box below</p>
+                <p className="text-sm text-purple-700">Then use your keyboard's 🎤 button</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Text Input - Works on both desktop and mobile */}
         <div>
           <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Transcript (You can edit this)
+            {isMobile ? '✍️ Tap here and use keyboard mic button' : 'Transcript (You can edit this)'}
           </label>
           <textarea
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
-            placeholder="Your voice will be transcribed here... or type manually"
-            className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+            placeholder={isMobile 
+              ? "Tap here, then use the 🎤 on your keyboard to speak..." 
+              : "Your voice will be transcribed here... or type manually"
+            }
+            className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-lg ${
               darkMode
                 ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
                 : 'bg-white border-gray-300 text-gray-800'
             }`}
-            rows="6"
+            rows="8"
+            autoComplete="off"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck="true"
           />
+          {isMobile && (
+            <p className="mt-2 text-xs text-gray-500 text-center">
+              👆 After tapping, look for the 🎤 microphone button on your keyboard
+            </p>
+          )}
         </div>
 
         {/* Save Button */}
         <button
           onClick={saveEntry}
           disabled={!transcript.trim()}
-          className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+          className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-lg ${
             transcript.trim()
               ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1166,7 +1267,6 @@ function VoiceJournal() {
                     </button>
                   </div>
                 </div>
-                {/* CRITICAL: Add id to paragraph */}
                 <p 
                   id={`entry-text-${entry.id}`}
                   className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}
@@ -1187,7 +1287,10 @@ function VoiceJournal() {
             No journal entries yet
           </h3>
           <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>
-            Start recording your thoughts!
+            {isMobile 
+              ? 'Tap the text box and use your keyboard\'s mic button to start!' 
+              : 'Start recording your thoughts!'
+            }
           </p>
         </div>
       )}
@@ -1637,7 +1740,7 @@ function HomePage({ setCurrentPage }) {
       {/* Hero Section */}
       <div className="text-center space-y-6 py-12">
         <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
-          Your Mental Health Journey Starts Here
+          Your Mental Health Journey Starts Here 🌟
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
           Track your emotions, learn about mental health, test your knowledge, and set meaningful goals - all in one supportive platform.
