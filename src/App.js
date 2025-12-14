@@ -1204,6 +1204,9 @@ function VoiceJournal() {
             autoCorrect="on"
             autoCapitalize="sentences"
             spellCheck="true"
+            inputMode="text"
+            enterKeyHint="done"
+            onClick={(e) => e.target.focus()}
           />
           {isMobile && (
             <p className="mt-2 text-xs text-gray-500 text-center">
