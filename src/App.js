@@ -237,7 +237,7 @@ const AIMentor = () => {
     </div>
   );
 };
-// ==================== MOOD ANALYTICS COMPONENT ====================
+// MOOD ANALYTICS COMPONENT
 function MoodAnalytics() {
   const [moodHistory, setMoodHistory] = useState([]);
 
@@ -346,7 +346,7 @@ function MoodAnalytics() {
   );
 }
 
-// ==================== BREATHING EXERCISE COMPONENT ====================
+// BREATHING EXERCISE COMPONENT 
 function BreathingExercise() {
   const [isActive, setIsActive] = useState(false);
   const [phase, setPhase] = useState('inhale');
@@ -680,7 +680,7 @@ function BreathingExercise() {
     </div>
   );
 }
-// ==================== CRISIS RESOURCES COMPONENT ====================
+// CRISIS RESOURCES COMPONENT 
 function CrisisResources() {
   const globalHotlines = [
     { country: 'India', number: '91529 87821', service: 'AASRA', available: '24/7' },
@@ -1748,7 +1748,6 @@ function HomePage({ setCurrentPage }) {
       </div>
 
       {/* Feature Cards */}
-      {/* In HomePage component, update the feature cards grid to include more cards: */}
 
 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
   <FeatureCard
@@ -1901,8 +1900,6 @@ function EmotionReflector() {
     { name: 'Calm', emoji: '😌', color: 'bg-green-100 border-green-300' },
     { name: 'Excited', emoji: '🤩', color: 'bg-pink-100 border-pink-300' }
   ];
-
-  // In your EmotionReflector component, replace the handleSave function with this:
 
 const handleSave = () => {
   if (!selectedEmotion) return;
