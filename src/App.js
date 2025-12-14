@@ -1298,7 +1298,6 @@ function VoiceJournal() {
   );
 }
 
-
 function DataManagement() {
   const [exportStatus, setExportStatus] = useState('');
   const [importStatus, setImportStatus] = useState('');
@@ -1740,7 +1739,7 @@ function HomePage({ setCurrentPage }) {
       {/* Hero Section */}
       <div className="text-center space-y-6 py-12">
         <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
-          Your Mental Health Journey Starts Here 🌟
+          Your Mental Health Journey Starts Here
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
           Track your emotions, learn about mental health, test your knowledge, and set meaningful goals - all in one supportive platform.
