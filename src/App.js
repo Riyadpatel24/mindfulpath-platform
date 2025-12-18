@@ -4,6 +4,8 @@ import './App.css';
 
 const API_BASE = 'http://localhost:5000/api';
 
+const BACKEND_URL = 'https://mindfulpath-platform.onrender.com';
+
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
@@ -1608,6 +1610,46 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
   const { darkMode, toggleTheme } = useTheme();
   const [toolsOpen, setToolsOpen] = useState(false);
   
+  // ADD THESE NEW LINES FOR AUTHENTICATION ✅
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // ADD THIS useEffect ✅
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/user`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = () => {
+    window.location.href = `${BACKEND_URL}/auth/google`;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/auth/logout`, {
+        credentials: 'include'
+      });
+      setUser(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+  
   const mainNavItems = [
     { id: 'home', label: 'Home', icon: Heart },
     { id: 'emotion', label: 'Emotions', icon: Brain },
@@ -1637,7 +1679,7 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
             <span className="nav-logo-text">MindfulPath</span>
           </div>
 
-          {/* Desktop Navigation - DROPDOWN MODE ONLY */}
+          {/* Desktop Navigation */}
           <div className="nav-desktop">
             {/* Main Nav Items */}
             {mainNavItems.map(item => (
@@ -1686,6 +1728,39 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
               )}
             </div>
             
+            {/* 🔥 ADD THIS AUTH SECTION - DESKTOP 🔥 */}
+            <div className="flex items-center gap-2 ml-4">
+              {loading ? (
+                <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+              ) : user ? (
+                <>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                    darkMode ? 'bg-gray-700' : 'bg-purple-100'
+                  }`}>
+                    {user.profilePic && (
+                      <img src={user.profilePic} alt={user.name} className="w-6 h-6 rounded-full" />
+                    )}
+                    <span className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                      {user.name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="px-3 py-1.5 bg-red-500 text-white rounded-full text-sm hover:bg-red-600 transition"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleLogin}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-sm hover:shadow-lg transition"
+                >
+                  Login
+                </button>
+              )}
+            </div>
+            
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -1729,6 +1804,45 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
                 <span>{item.label}</span>
               </button>
             ))}
+            
+            {/* 🔥 ADD THIS AUTH SECTION - MOBILE 🔥 */}
+            {!loading && (
+              <div className="border-t pt-4 mt-4">
+                {user ? (
+                  <div className="space-y-2">
+                    <div className={`flex items-center gap-2 p-3 rounded-lg ${
+                      darkMode ? 'bg-gray-700' : 'bg-purple-100'
+                    }`}>
+                      {user.profilePic && (
+                        <img src={user.profilePic} alt={user.name} className="w-8 h-8 rounded-full" />
+                      )}
+                      <span className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                        {user.name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      handleLogin();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition"
+                  >
+                    Login with Google
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
