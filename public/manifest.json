@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "MindfulPath",
+  "name": "MindfulPath - Mental Health Companion",
+  "description": "Your personal mental health and wellness platform",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#9333ea",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
 }

@@ -1,10 +1,13 @@
-import { AlertCircle, Award, BarChart3, BookOpen, Brain, Calendar, CheckCircle, Circle, Database, Download, Edit2, Heart, ListTodo, Menu, MessageCircle, Mic, MicOff, Pause, Phone, Play, RotateCcw, Save, Shield, Sparkles, Target, Trash2, TrendingUp, Upload, Volume2, Wifi, WifiOff, Wind, X } from 'lucide-react';
+import { AlertCircle, Award, BarChart3, BookOpen, Brain, Calendar, CheckCircle, Circle, Database, Download, Edit2, Heart, ListTodo, LogOut, Mail, Menu, MessageCircle, Mic, MicOff, Pause, Phone, Play, RotateCcw, Save, Shield, Sparkles, Target, Trash2, TrendingUp, Upload, User, Volume2, Wifi, WifiOff, Wind, X } from 'lucide-react';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import './App.css';
 
 const API_BASE = 'http://localhost:5000/api';
+// const BACKEND_URL = "https://mindfulpath-platform.onrender.com";
 
-const BACKEND_URL = 'https://mindfulpath-platform.onrender.com';
+const BACKEND_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000' 
+  : 'https://mindfulpath-platform.onrender.com';
 
 const ThemeContext = createContext();
 
@@ -825,7 +828,13 @@ function VoiceJournal() {
     };
     const handleOffline = () => {
       setIsOnline(false);
-      if (isRecording) stopRecording();
+      if (isRecording && recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error('Error stopping recognition:', e);
+        }
+      }
       setErrorMessage('❌ You are offline. Voice recognition needs internet connection.');
     };
 
@@ -837,16 +846,9 @@ function VoiceJournal() {
     };
   }, [isRecording]);
 
-  // Load entries and preferences
+  // Load entries from backend
   useEffect(() => {
-    const saved = localStorage.getItem('voiceJournalEntries');
-    if (saved) {
-      try {
-        setEntries(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error loading entries');
-      }
-    }
+    loadJournalEntries();
     
     const savedGender = localStorage.getItem('voiceGender');
     if (savedGender) {
@@ -854,10 +856,24 @@ function VoiceJournal() {
     }
   }, []);
 
+  const loadJournalEntries = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/journal`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEntries(data);
+      }
+    } catch (error) {
+      console.error('Error loading journal entries:', error);
+    }
+  };
+
   // Initialize speech recognition (desktop only)
   useEffect(() => {
     if (isMobile) {
-      return; // Skip on mobile, use native keyboard input instead
+      return;
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -896,20 +912,25 @@ function VoiceJournal() {
       setIsRecording(false);
       
       if (event.error === 'network') {
-        setErrorMessage('🌐 Network error: Cannot connect to speech service.');
+        setErrorMessage('🌐 Unable to connect to speech service. Please check your internet connection and try again.');
       } else if (event.error === 'no-speech') {
-        setErrorMessage('🎤 No speech detected.');
-        setTimeout(() => setErrorMessage(''), 3000);
+        setErrorMessage('🎤 No speech detected. Please speak clearly into your microphone.');
+        setTimeout(() => setErrorMessage(''), 4000);
       } else if (event.error === 'not-allowed') {
-        setErrorMessage('❌ Microphone access denied.');
+        setErrorMessage('❌ Microphone access denied. Please allow microphone access in your browser settings.');
       } else if (event.error === 'aborted') {
+        // Ignore aborted errors
         return;
+      } else if (event.error === 'service-not-allowed') {
+        setErrorMessage('❌ Speech recognition service is not available. Please try typing instead.');
       } else {
-        setErrorMessage(`❌ Error: ${event.error}`);
+        setErrorMessage(`❌ Speech recognition error: ${event.error}. You can still type your journal entry.`);
       }
     };
 
+    // THIS IS THE FIX - ADD recognition.onend HERE (inside useEffect, after onerror)
     recognition.onend = () => {
+      console.log('Recognition ended');
       setIsRecording(false);
     };
 
@@ -927,13 +948,22 @@ function VoiceJournal() {
   }, [isMobile]);
 
   const startRecording = async () => {
+    // Check internet connection
     if (!navigator.onLine) {
-      setErrorMessage('❌ You are offline.');
+      setErrorMessage('❌ No internet connection. Voice recognition requires internet. You can still type your journal entry.');
+      return;
+    }
+
+    // Test connection to speech service
+    try {
+      await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
+    } catch (error) {
+      setErrorMessage('🌐 Cannot reach speech service. Please check your internet connection and try again.');
       return;
     }
     
     if (!recognitionRef.current) {
-      setErrorMessage('❌ Speech recognition not available.');
+      setErrorMessage('❌ Speech recognition not available. Please use the text box to type your journal entry.');
       return;
     }
 
@@ -948,42 +978,80 @@ function VoiceJournal() {
       recognitionRef.current.start();
     } catch (error) {
       console.error('Microphone error:', error);
-      setErrorMessage('❌ Could not access microphone.');
+      if (error.name === 'NotAllowedError') {
+        setErrorMessage('❌ Microphone access denied. Please allow microphone access in your browser settings.');
+      } else {
+        setErrorMessage('❌ Could not access microphone. You can still type your journal entry.');
+      }
     }
   };
+
+  // REMOVE the recognition.onend from here - it was in the wrong place!
 
   const stopRecording = () => {
     if (recognitionRef.current && isRecording) {
       try {
         recognitionRef.current.stop();
+        setIsRecording(false); // Immediately update UI
       } catch (e) {
         console.error('Error stopping recognition:', e);
+        setIsRecording(false); // Still reset state on error
       }
     }
   };
 
-  const saveEntry = () => {
+  const saveEntry = async () => {
     if (!transcript.trim()) return;
 
-    const newEntry = {
-      id: Date.now(),
-      text: transcript,
-      timestamp: new Date().toISOString(),
-      date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString()
-    };
+    try {
+      // Save to backend
+      const response = await fetch(`${BACKEND_URL}/api/journal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          text: transcript
+        })
+      });
 
-    const updatedEntries = [newEntry, ...entries];
-    setEntries(updatedEntries);
-    localStorage.setItem('voiceJournalEntries', JSON.stringify(updatedEntries));
-    setTranscript('');
-    setErrorMessage('');
+      if (response.ok) {
+        await response.json();
+        
+        // Add to local state immediately
+        const newEntry = {
+          id: Date.now(),
+          text: transcript,
+          timestamp: new Date().toISOString(),
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString()
+        };
+        setEntries([newEntry, ...entries]);
+        setTranscript('');
+        setErrorMessage('');
+      } else {
+        setErrorMessage('❌ Failed to save entry. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving entry:', error);
+      setErrorMessage('❌ Error saving entry. Please try again.');
+    }
   };
 
-  const deleteEntry = (id) => {
-    const updatedEntries = entries.filter(entry => entry.id !== id);
-    setEntries(updatedEntries);
-    localStorage.setItem('voiceJournalEntries', JSON.stringify(updatedEntries));
+  const deleteEntry = async (id) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/journal/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        setEntries(entries.filter(entry => entry.id !== id && entry._id !== id));
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+    }
   };
 
   const speakEntry = (entryId) => {
@@ -1097,11 +1165,6 @@ function VoiceJournal() {
                 <li><strong>Speak</strong> - your words will appear as text!</li>
                 <li><strong>Tap "Save"</strong> when done</li>
               </ol>
-              <div className="mt-3 p-3 bg-blue-100 rounded-lg">
-                <p className="text-xs text-blue-800">
-                  💡 <strong>Tip:</strong> The microphone icon is usually next to the spacebar on your mobile keyboard (iOS/Android). If you don't see it, check your keyboard settings!
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -1184,7 +1247,7 @@ function VoiceJournal() {
           </div>
         )}
 
-        {/* Text Input - Works on both desktop and mobile */}
+        {/* Text Input */}
         <div>
           <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             {isMobile ? '✍️ Tap here and use keyboard mic button' : 'Transcript (You can edit this)'}
@@ -1202,19 +1265,7 @@ function VoiceJournal() {
                 : 'bg-white border-gray-300 text-gray-800'
             }`}
             rows="8"
-            autoComplete="off"
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            spellCheck="true"
-            inputMode="text"
-            enterKeyHint="done"
-            onClick={(e) => e.target.focus()}
           />
-          {isMobile && (
-            <p className="mt-2 text-xs text-gray-500 text-center">
-              👆 After tapping, look for the 🎤 microphone button on your keyboard
-            </p>
-          )}
         </div>
 
         {/* Save Button */}
@@ -1241,7 +1292,7 @@ function VoiceJournal() {
           <div className="space-y-4">
             {entries.map((entry) => (
               <div
-                key={entry.id}
+                key={entry.id || entry._id}
                 className={`p-4 rounded-xl border-2 ${
                   darkMode
                     ? 'bg-gray-900 border-gray-700'
@@ -1257,14 +1308,14 @@ function VoiceJournal() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => speakEntry(entry.id)}
+                      onClick={() => speakEntry(entry.id || entry._id)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                       title="Listen to entry"
                     >
                       <Volume2 className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => deleteEntry(entry.id)}
+                      onClick={() => deleteEntry(entry.id || entry._id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                       title="Delete entry"
                     >
@@ -1273,7 +1324,7 @@ function VoiceJournal() {
                   </div>
                 </div>
                 <p 
-                  id={`entry-text-${entry.id}`}
+                  id={`entry-text-${entry.id || entry._id}`}
                   className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}
                 >
                   {entry.text}
@@ -1599,6 +1650,7 @@ function ThemedApp({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuO
         {currentPage === 'crisis' && <CrisisResources />}
         {currentPage === 'journal' && <VoiceJournal/>}
         {currentPage === 'data' && <DataManagement/>}
+        {currentPage === 'profile' && <ProfilePage />}
       </main>
 
       <Footer />
@@ -1609,12 +1661,9 @@ function ThemedApp({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuO
 function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuOpen }) {
   const { darkMode, toggleTheme } = useTheme();
   const [toolsOpen, setToolsOpen] = useState(false);
-  
-  // ADD THESE NEW LINES FOR AUTHENTICATION ✅
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ADD THIS useEffect ✅
   useEffect(() => {
     checkAuthStatus();
   }, []);
@@ -1728,38 +1777,27 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
               )}
             </div>
             
-            {/* 🔥 ADD THIS AUTH SECTION - DESKTOP 🔥 */}
-            <div className="flex items-center gap-2 ml-4">
-              {loading ? (
-                <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-              ) : user ? (
-                <>
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
-                    darkMode ? 'bg-gray-700' : 'bg-purple-100'
-                  }`}>
-                    {user.profilePic && (
-                      <img src={user.profilePic} alt={user.name} className="w-6 h-6 rounded-full" />
-                    )}
-                    <span className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                      {user.name}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="px-3 py-1.5 bg-red-500 text-white rounded-full text-sm hover:bg-red-600 transition"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleLogin}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-sm hover:shadow-lg transition"
-                >
-                  Login
-                </button>
-              )}
-            </div>
+            {/* Simple Profile Button - Desktop */}
+            {user ? (
+              <button
+                onClick={() => setCurrentPage('profile')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ml-4 ${
+                  darkMode 
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                    : 'bg-purple-500 hover:bg-purple-600 text-white'
+                }`}
+              >
+                <User className="w-5 h-5" />
+                <span>Profile</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleLogin}
+                className="px-6 py-2 ml-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-semibold"
+              >
+                Login
+              </button>
+            )}
             
             {/* Theme Toggle */}
             <button
@@ -1805,42 +1843,33 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
               </button>
             ))}
             
-            {/* 🔥 ADD THIS AUTH SECTION - MOBILE 🔥 */}
-            {!loading && (
-              <div className="border-t pt-4 mt-4">
-                {user ? (
-                  <div className="space-y-2">
-                    <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                      darkMode ? 'bg-gray-700' : 'bg-purple-100'
-                    }`}>
-                      {user.profilePic && (
-                        <img src={user.profilePic} alt={user.name} className="w-8 h-8 rounded-full" />
-                      )}
-                      <span className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                        {user.name}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      handleLogin();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition"
-                  >
-                    Login with Google
-                  </button>
-                )}
+            {/* Mobile Profile Button */}
+            {user ? (
+              <div className={`border-t pt-4 mt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => {
+                    setCurrentPage('profile');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold ${
+                    darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
+                  } text-white`}
+                >
+                  <User className="w-5 h-5" />
+                  Your Account
+                </button>
+              </div>
+            ) : (
+              <div className={`border-t pt-4 mt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => {
+                    handleLogin();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-semibold"
+                >
+                  Login with Google
+                </button>
               </div>
             )}
           </div>
@@ -2017,34 +2046,66 @@ function EmotionReflector() {
     { name: 'Excited', emoji: '🤩', color: 'bg-pink-100 border-pink-300' }
   ];
 
-const handleSave = () => {
-  if (!selectedEmotion) return;
-  
-  const entry = {
-    id: Date.now(),
-    emotion: selectedEmotion,
-    intensity,
-    note,
-    timestamp: new Date().toLocaleString()
+  // Load mood history from backend when component mounts
+  useEffect(() => {
+    loadMoodHistory();
+  }, []);
+
+  const loadMoodHistory = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/moods`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEntries(data);
+      }
+    } catch (error) {
+      console.error('Error loading mood history:', error);
+    }
   };
-  
-  const newEntries = [entry, ...entries];
-  setEntries(newEntries);
-  
-  // Save to localStorage for analytics
-  try {
-    const existingHistory = localStorage.getItem('moodHistory');
-    const history = existingHistory ? JSON.parse(existingHistory) : [];
-    history.push(entry);
-    localStorage.setItem('moodHistory', JSON.stringify(history));
-  } catch (e) {
-    console.error('Error saving to localStorage');
-  }
-  
-  setSelectedEmotion('');
-  setIntensity(5);
-  setNote('');
-};
+
+  const handleSave = async () => {
+    if (!selectedEmotion) return;
+    
+    try {
+      // Save to backend
+      const response = await fetch(`${BACKEND_URL}/api/moods`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          emotion: selectedEmotion,
+          intensity,
+          note
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Add to local state immediately for better UX
+        const newEntry = {
+          id: Date.now(),
+          emotion: selectedEmotion,
+          intensity,
+          note,
+          timestamp: new Date().toLocaleString()
+        };
+        setEntries([newEntry, ...entries]);
+        
+        // Reset form
+        setSelectedEmotion('');
+        setIntensity(5);
+        setNote('');
+      }
+    } catch (error) {
+      console.error('Error saving mood:', error);
+      alert('Failed to save mood. Please try again.');
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -2118,7 +2179,7 @@ const handleSave = () => {
           <h2 className="text-2xl font-bold mb-6">Your Reflections</h2>
           <div className="space-y-4">
             {entries.map(entry => (
-              <div key={entry.id} className="border-l-4 border-purple-500 pl-4 py-2">
+              <div key={entry.id || entry._id} className="border-l-4 border-purple-500 pl-4 py-2">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-lg">{entry.emotion}</span>
                   <span className="text-sm text-gray-500">{entry.timestamp}</span>
@@ -2581,62 +2642,132 @@ function TodoSection() {
   const [editText, setEditText] = useState('');
   
   useEffect(() => {
-    const saved = localStorage.getItem('mentalHealthGoals');
-    if (saved) {
-      try {
-        setTodos(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error loading goals');
-      }
-    }
+    loadGoals();
   }, []);
+
+  const loadGoals = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/goals`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTodos(data);
+      }
+    } catch (error) {
+      console.error('Error loading goals:', error);
+    }
+  };
 
   const currentDate = new Date();
   const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
   const currentYear = currentDate.getFullYear();
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newTodo.trim()) return;
     
-    const todo = {
-      id: Date.now(),
-      text: newTodo,
-      completed: false,
-      createdAt: new Date().toLocaleString()
-    };
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/goals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          text: newTodo
+        })
+      });
 
-    const updateTodos = [...todos, todo];
-    setNewTodo('');
-
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Add to local state
+        const todo = {
+          id: Date.now(),
+          text: newTodo,
+          completed: false,
+          createdAt: new Date().toLocaleString()
+        };
+        setTodos([...todos, todo]);
+        setNewTodo('');
+      }
+    } catch (error) {
+      console.error('Error adding goal:', error);
+    }
   };
 
-  const toggleComplete = (id) => {
-    const updatedTodos = todos.map(todo =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    );
-    setTodos(updatedTodos);
-    localStorage.setItem('mentalHealthGoals', JSON.stringify(updatedTodos));
+  const toggleComplete = async (id) => {
+    const todo = todos.find(t => (t.id === id || t._id === id));
+    if (!todo) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/goals/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          completed: !todo.completed
+        })
+      });
+
+      if (response.ok) {
+        const updatedTodos = todos.map(t =>
+          (t.id === id || t._id === id) ? { ...t, completed: !t.completed } : t
+        );
+        setTodos(updatedTodos);
+      }
+    } catch (error) {
+      console.error('Error toggling goal:', error);
+    }
   };
 
-  const deleteTodo = (id) => {
-    const updatedTodos = todos.filter(todo => todo.id !== id);
-    setTodos(updatedTodos);
-    localStorage.setItem('mentalHealthGoals', JSON.stringify(updatedTodos));
+  const deleteTodo = async (id) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/goals/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const updatedTodos = todos.filter(t => t.id !== id && t._id !== id);
+        setTodos(updatedTodos);
+      }
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+    }
   };
 
   const startEdit = (todo) => {
-    setEditingId(todo.id);
+    setEditingId(todo.id || todo._id);
     setEditText(todo.text);
   };
 
-  const saveEdit = () => {
-    const updatedTodos = todos.map(todo =>
-      todo.id === editingId ? { ...todo, text: editText } : todo
-    );
-    setTodos(updatedTodos);
-    localStorage.setItem('mentalHealthGoals', JSON.stringify(updatedTodos));
-    setEditingId(null);
-    setEditText('');
+  const saveEdit = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/goals/${editingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          text: editText
+        })
+      });
+
+      if (response.ok) {
+        const updatedTodos = todos.map(t =>
+          (t.id === editingId || t._id === editingId) ? { ...t, text: editText } : t
+        );
+        setTodos(updatedTodos);
+        setEditingId(null);
+        setEditText('');
+      }
+    } catch (error) {
+      console.error('Error updating goal:', error);
+    }
   };
 
   const completedCount = todos.filter(t => t.completed).length;
@@ -2694,12 +2825,12 @@ function TodoSection() {
           <div className="space-y-4">
             {todos.map(todo => (
               <div
-                key={todo.id}
+                key={todo.id || todo._id}
                 className={`p-4 rounded-xl border-2 transition-all ${
                   todo.completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                {editingId === todo.id ? (
+                {editingId === (todo.id || todo._id) ? (
                   <div className="flex items-center space-x-3">
                     <input
                       type="text"
@@ -2724,7 +2855,7 @@ function TodoSection() {
                 ) : (
                   <div className="flex items-center space-x-3">
                     <button
-                      onClick={() => toggleComplete(todo.id)}
+                      onClick={() => toggleComplete(todo.id || todo._id)}
                       className="flex-shrink-0"
                     >
                       {todo.completed ? (
@@ -2746,7 +2877,7 @@ function TodoSection() {
                       <Edit2 className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => deleteTodo(todo.id)}
+                      onClick={() => deleteTodo(todo.id || todo._id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -2785,6 +2916,480 @@ function TodoSection() {
               + {suggestion}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfilePage() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    bio: ''
+  });
+  const { darkMode } = useTheme();
+
+  // Built-in avatar options
+  const avatarOptions = [
+  { url: 'https://i.pinimg.com/736x/bb/65/bd/bb65bdeab14fcb2e332edcdfae569465.jpg', name: 'Avatar 1' },
+  { url: 'https://i.pinimg.com/736x/5a/00/29/5a00291c45a95041822cc39115c805c5.jpg', name: 'Avatar 2' },
+  { url: 'https://i.pinimg.com/736x/9e/c0/f8/9ec0f877571edc437f89c15c08081533.jpg', name: 'Avatar 3' },
+  { url: 'https://i.pinimg.com/1200x/be/41/1e/be411e44d06758f19b9789258ca81571.jpg', name: 'Avatar 4' },
+  { url: 'https://i.pinimg.com/736x/a8/c1/59/a8c1595c7b9d6beda30235fbfe5a6d67.jpg', name: 'Avatar 5' },
+  { url: 'https://i.pinimg.com/1200x/ab/b8/c1/abb8c1876f2887bc314fce7f2da3db21.jpg', name: 'Avatar 6' },
+  { url: 'https://i.pinimg.com/736x/c8/8e/3a/c88e3a11ea2a2795beef91f780923256.jpg', name: 'Avatar 7' },
+  { url: 'https://i.pinimg.com/736x/f9/16/3c/f9163c15ac282dec65a0e7be5da3262d.jpg', name: 'Avatar 8' },
+  { url: 'https://i.pinimg.com/736x/69/bb/cd/69bbcdb223247cc22ad72843b74c1e60.jpg', name: 'Avatar 9' },
+  { url: 'https://i.pinimg.com/736x/f9/16/3c/f9163c15ac282dec65a0e7be5da3262d.jpg', name: 'Avatar 10' },
+  { url: 'https://i.pinimg.com/1200x/f3/c4/72/f3c472261d27464cccfd525b09eac4d1.jpg', name: 'Avatar 11' },
+  { url: 'https://i.pinimg.com/1200x/81/d9/44/81d944e5ae29c59c867646a04c46ae2e.jpg', name: 'Avatar 12' },
+  { url: 'https://i.pinimg.com/1200x/f3/37/d4/f337d462b4fb476ae70677748a3b954d.jpg', name: 'Avatar 13' },
+  { url: 'https://i.pinimg.com/1200x/f5/a5/4a/f5a54a765593478f6961713f36e50a81.jpg', name: 'Avatar 14' },
+  { url: 'https://i.pinimg.com/736x/39/be/5e/39be5e7ab4991367a63c632fc6732982.jpg', name: 'Avatar 15' },
+  { url: 'https://i.pinimg.com/1200x/47/a0/40/47a040d6b36af067cd70e1ebcfab240e.jpg', name: 'Avatar 16' },
+  { url: 'https://i.pinimg.com/1200x/3a/8b/f2/3a8bf23e69d455f67bbf65c6787b2c1a.jpg', name: 'Avatar 17' },
+  { url: 'https://i.pinimg.com/1200x/8b/fd/99/8bfd999798a240afe86965594b3b83c8.jpg', name: 'Avatar 18' },
+  { url: 'https://i.pinimg.com/736x/39/50/84/3950846247eaac175dba0f5a31f20f77.jpg', name: 'Avatar 19' },
+  { url: 'https://i.pinimg.com/1200x/17/b3/04/17b304668ab9b62611a2d495af247451.jpg', name: 'Avatar 20' },
+  { url: 'https://i.pinimg.com/736x/5b/69/c1/5b69c1048d6a8e3a2ef8d8a101d0dcb2.jpg', name: 'Avatar 21' },
+  { url: 'https://i.pinimg.com/736x/82/b0/2a/82b02aaa45793e810d3fd13414107803.jpg', name: 'Avatar 22'},
+];
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/user`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        setEditForm({
+          name: userData.name || '',
+          bio: userData.bio || ''
+        });
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!window.confirm('Are you sure you want to logout?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/logout`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        localStorage.clear();
+        window.location.href = '/';
+      } else {
+        alert('Logout failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      alert('Logout failed. Please try again.');
+    }
+  };
+
+  const handleAvatarSelect = async (avatarUrl) => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/profile/avatar`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ profilePic: avatarUrl })
+      });
+
+      if (response.ok) {
+        setUser({ ...user, profilePic: avatarUrl });
+        setShowAvatarPicker(false);
+      } else {
+        alert('Failed to update avatar');
+      }
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      alert('Failed to update avatar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(editForm)
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUser(updatedUser);
+        setIsEditing(false);
+      } else {
+        alert('Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 text-center`}>
+          <User className={`w-20 h-20 ${darkMode ? 'text-purple-400' : 'text-purple-600'} mx-auto mb-6`} />
+          <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-4`}>
+            Welcome to MindfulPath
+          </h1>
+          <p className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} mb-8`}>
+            Please login to access your profile
+          </p>
+          <button
+            onClick={() => window.location.href = `${BACKEND_URL}/auth/google`}
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:shadow-lg transition-all"
+          >
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8">
+      {/* Avatar Picker Modal */}
+      {showAvatarPicker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto`}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                Choose Your Avatar
+              </h2>
+              <button
+                onClick={() => setShowAvatarPicker(false)}
+                className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <p className={`mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Select a fun avatar or keep your Google profile picture
+            </p>
+
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+              {/* Keep Google Picture Option */}
+              <button
+                onClick={() => handleAvatarSelect(user.profilePic)}
+                disabled={saving}
+                className="relative group"
+              >
+                <img
+                  src={user.profilePic}
+                  alt="Your Google Picture"
+                  className="w-full aspect-square rounded-full border-4 border-purple-300 hover:border-purple-500 transition"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs py-1 text-center rounded-b-full">
+                  Google Pic
+                </div>
+              </button>
+
+              {/* Avatar Options */}
+              {avatarOptions.map((avatar, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleAvatarSelect(avatar.url)}
+                  disabled={saving}
+                  className="relative group"
+                  title={avatar.name}
+                >
+                  <img
+                    src={avatar.url}
+                    alt={avatar.name}
+                    className="w-full aspect-square rounded-full border-4 border-gray-300 hover:border-purple-500 transition"
+                  />
+                  <div className="absolute inset-0 bg-purple-600 bg-opacity-0 hover:bg-opacity-10 rounded-full transition"></div>
+                </button>
+              ))}
+            </div>
+
+            {saving && (
+              <div className="mt-4 text-center">
+                <div className="inline-flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Updating avatar...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Profile Header */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl overflow-hidden`}>
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 h-32"></div>
+        <div className="px-8 pb-8">
+          <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 mb-6 gap-6">
+            {/* Profile Picture with Edit Button */}
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                {user.profilePic ? (
+                  <img
+                    src={user.profilePic}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white text-5xl font-bold">
+                    {user.name?.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowAvatarPicker(true)}
+                className="absolute bottom-0 right-0 p-2 bg-purple-600 rounded-full text-white hover:bg-purple-700 transition shadow-lg"
+                title="Change Avatar"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* User Info */}
+            <div className="text-center md:text-left flex-1">
+              {isEditing ? (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className={`text-2xl font-bold px-3 py-2 rounded-lg border-2 w-full ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-800'
+                    }`}
+                    placeholder="Your name"
+                  />
+                  <textarea
+                    value={editForm.bio}
+                    onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                    className={`px-3 py-2 rounded-lg border-2 w-full ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-800'
+                    }`}
+                    placeholder="Tell us about yourself..."
+                    rows="2"
+                  />
+                </div>
+              ) : (
+                <>
+                  <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-2`}>
+                    {user.name}
+                  </h1>
+                  {user.bio && (
+                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2 italic`}>
+                      "{user.bio}"
+                    </p>
+                  )}
+                  <div className={`flex items-center justify-center md:justify-start gap-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <Mail className="w-4 h-4" />
+                    <span>{user.email}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 flex-wrap justify-center">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditForm({
+                        name: user.name || '',
+                        bio: user.bio || ''
+                      });
+                    }}
+                    disabled={saving}
+                    className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Save
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all flex items-center gap-2"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all flex items-center gap-2 shadow-lg"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Sign Out
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Details Card */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+        <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-6 flex items-center gap-3`}>
+          <Shield className="w-6 h-6 text-purple-600" />
+          Account Details
+        </h2>
+        <div className="space-y-4">
+          <div className={`flex justify-between items-center py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div>
+              <p className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Full Name</p>
+              <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>{user.name}</p>
+            </div>
+            <User className="w-5 h-5 text-gray-400" />
+          </div>
+          
+          <div className={`flex justify-between items-center py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div>
+              <p className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Email Address</p>
+              <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>{user.email}</p>
+            </div>
+            <Mail className="w-5 h-5 text-gray-400" />
+          </div>
+          
+          <div className={`flex justify-between items-center py-4`}>
+            <div>
+              <p className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>User ID</p>
+              <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} font-mono text-sm mt-1`}>{user.id || user._id}</p>
+            </div>
+            <Database className="w-5 h-5 text-gray-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Account Stats */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6 text-center`}>
+          <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Brain className="w-6 h-6 text-purple-600" />
+          </div>
+          <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-1`}>
+            {user.moodHistory?.length || 0}
+          </p>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Mood Check-ins
+          </p>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6 text-center`}>
+          <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Mic className="w-6 h-6 text-pink-600" />
+          </div>
+          <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-1`}>
+            {user.journalEntries?.length || 0}
+          </p>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Journal Entries
+          </p>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6 text-center`}>
+          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Target className="w-6 h-6 text-blue-600" />
+          </div>
+          <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-1`}>
+            {user.goals?.length || 0}
+          </p>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Goals Set
+          </p>
+        </div>
+      </div>
+
+      {/* Privacy & Security */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-blue-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 flex items-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+          <Shield className="w-6 h-6" />
+          Privacy & Security
+        </h3>
+        <div className={`space-y-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>Your data is stored securely and encrypted</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>Only you can access your personal information</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>We never share your data with third parties</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>You can export or delete your data anytime</p>
+          </div>
         </div>
       </div>
     </div>

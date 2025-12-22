@@ -7,18 +7,27 @@ require("./config/db");
 require("./passport");
 
 const authRoutes = require("./routes/auth");
+const userdataRoutes = require("./routes/userdata");
 
 const app = express();
 
+
 app.use(cors({
   origin: "https://mindfulpath-platform.vercel.app",
+  origin: "http://localhost:3000",
   credentials: true
 }));
 
 app.use(session({
-  secret: process.env.COOKIE_KEY,
+  secret: process.env.SESSION_SECRET || 'defaultsecret',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: { 
+    secure: false,
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
+  }
 }));
 
 app.use(passport.initialize());
@@ -26,6 +35,7 @@ app.use(passport.session());
 
 app.use(express.json());
 app.use("/auth", authRoutes);
+app.use("/api", userdataRoutes);
 
 const PORT = process.env.PORT || 5000;
 
