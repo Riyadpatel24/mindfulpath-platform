@@ -33,9 +33,9 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: true,  // Always true for Render (uses HTTPS)
-    sameSite: 'none'  // Always 'none' for cross-origin
-}
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  }
 }));
 
 // Passport middleware
@@ -58,4 +58,35 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`✅ Environment: ${process.env.NODE_ENV}`);
+});
+
+// Update user profile endpoint
+app.put('/user/profile', async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.session.userId) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const { name, bio, profileImage } = req.body;
+
+    // Update user in database
+    const updatedUser = await User.findByIdAndUpdate(
+      req.session.userId,
+      {
+        name,
+        bio,
+        profileImage
+      },
+      { new: true, runValidators: true }
+    ).select('-password'); // Don't send password back
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Error updating profile' });
+  }
 });

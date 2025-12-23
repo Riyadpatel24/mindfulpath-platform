@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   profilePic: {
     type: String
   },
-  bio: {                    // ⭐ Add this field
+  bio: {                    // ⭐ ADD THIS FIELD
     type: String,
     default: ''
   },

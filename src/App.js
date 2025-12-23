@@ -3,14 +3,10 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import './App.css';
 
 const API_BASE = 'http://localhost:5000/api';
-const BACKEND_URL = "https://mindfulpath-platform.onrender.com";
 
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('login') === 'success') {
-    window.location.href = '/'; // Redirect to home and trigger auth check
-  }
-}, []);
+const BACKEND_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000' 
+  : 'https://mindfulpath-platform.onrender.com';
 
 const ThemeContext = createContext();
 
@@ -1650,40 +1646,36 @@ function ThemedApp({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuO
     </div>
   );
 }
-
 function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuOpen }) {
   const { darkMode, toggleTheme } = useTheme();
   const [toolsOpen, setToolsOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   useEffect(() => {
-  // Check for login redirect parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('login') === 'success') {
-    // Clean up URL (remove ?login=success from address bar)
-    window.history.replaceState({}, '', window.location.pathname);
-  }
-  
-  // Always check auth status on page load
-  checkAuthStatus();
-}, []);
-
-const checkAuthStatus = async () => {
-  try {
-    const response = await fetch(`${BACKEND_URL}/auth/user`, {
-      credentials: 'include'
-    });
-    if (response.ok) {
-      const userData = await response.json();
-      setUser(userData);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('login') === 'success') {
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  } catch (error) {
-    console.error('Auth check failed:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/user`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = () => {
     window.location.href = `${BACKEND_URL}/auth/google`;
@@ -1695,8 +1687,10 @@ const checkAuthStatus = async () => {
         credentials: 'include'
       });
       setUser(null);
+      setShowProfileDropdown(false);
+      window.location.href = '/';
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout error:', error);
     }
   };
   
@@ -1778,27 +1772,100 @@ const checkAuthStatus = async () => {
               )}
             </div>
             
-            {/* Profile/Login Button - Desktop */}
+            {/* Profile/Login Button - Desktop with Dropdown */}
             {loading ? (
               <div className="ml-4 px-4 py-2">
                 <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : user ? (
-              <button
-                onClick={() => setCurrentPage('profile')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ml-4 ${
-                  currentPage === 'profile' ? 'bg-purple-700 text-white' :
-                  darkMode 
-                    ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                    : 'bg-purple-500 hover:bg-purple-600 text-white'
-                }`}
-              >
-                {user.profilePic && (
-                  <img src={user.profilePic} alt={user.name} className="w-6 h-6 rounded-full" />
+              <div className="relative ml-4">
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all"
+                >
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+                    {user.profileImage || user.profilePic ? (
+                      <img 
+                        src={user.profileImage || user.profilePic} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold">
+                        {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <span className="hidden md:inline">{user.name || user.email}</span>
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    {/* User Info Section */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center overflow-hidden">
+                          {user.profileImage || user.profilePic ? (
+                            <img 
+                              src={user.profileImage || user.profilePic} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white text-lg font-semibold">
+                              {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {user.name || 'User'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          setCurrentPage('profile');
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        My Profile
+                      </button>
+                    </div>
+
+                    {/* Logout */}
+                    <div className="border-t border-gray-200 pt-1">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <User className="w-5 h-5" />
-                <span>Profile</span>
-              </button>
+              </div>
             ) : (
               <div className="flex items-center gap-2 ml-4">
                 <button
@@ -1807,17 +1874,6 @@ const checkAuthStatus = async () => {
                 >
                   <User className="w-5 h-5" />
                   <span>Login</span>
-                </button>
-                {/* Debug button - Remove after testing */}
-                <button
-                  onClick={() => {
-                    console.log('🔄 Manual auth check triggered');
-                    checkAuthStatus();
-                  }}
-                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-xs"
-                  title="Check login status"
-                >
-                  🔄
                 </button>
               </div>
             )}
@@ -1882,8 +1938,8 @@ const checkAuthStatus = async () => {
                     darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
                   } text-white`}
                 >
-                  {user.profilePic && (
-                    <img src={user.profilePic} alt={user.name} className="w-6 h-6 rounded-full" />
+                  {(user.profilePic || user.profileImage) && (
+                    <img src={user.profilePic || user.profileImage} alt={user.name} className="w-6 h-6 rounded-full" />
                   )}
                   <User className="w-5 h-5" />
                   Profile & Account
@@ -1906,6 +1962,7 @@ const checkAuthStatus = async () => {
     </nav>
   );
 }
+
 
 function HomePage({ setCurrentPage }) {
   return (
@@ -2961,7 +3018,6 @@ function ProfilePage() {
     bio: ''
   });
   const { darkMode } = useTheme();
-
   // Built-in avatar options
   const avatarOptions = [
   { url: 'https://i.pinimg.com/736x/bb/65/bd/bb65bdeab14fcb2e332edcdfae569465.jpg', name: 'Avatar 1' },
@@ -3013,9 +3069,7 @@ function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    if (!window.confirm('Are you sure you want to logout?')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to logout?')) return;
 
     try {
       const response = await fetch(`${BACKEND_URL}/auth/logout`, {
@@ -3026,8 +3080,6 @@ function ProfilePage() {
       if (response.ok) {
         localStorage.clear();
         window.location.href = '/';
-      } else {
-        alert('Logout failed. Please try again.');
       }
     } catch (error) {
       console.error('Logout failed:', error);
@@ -3040,9 +3092,7 @@ function ProfilePage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/profile/avatar`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ profilePic: avatarUrl })
       });
@@ -3050,12 +3100,9 @@ function ProfilePage() {
       if (response.ok) {
         setUser({ ...user, profilePic: avatarUrl });
         setShowAvatarPicker(false);
-      } else {
-        alert('Failed to update avatar');
       }
     } catch (error) {
       console.error('Error updating avatar:', error);
-      alert('Failed to update avatar');
     } finally {
       setSaving(false);
     }
@@ -3066,9 +3113,7 @@ function ProfilePage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/profile`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(editForm)
       });
@@ -3077,12 +3122,9 @@ function ProfilePage() {
         const updatedUser = await response.json();
         setUser(updatedUser);
         setIsEditing(false);
-      } else {
-        alert('Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -3131,10 +3173,7 @@ function ProfilePage() {
               <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                 Choose Your Avatar
               </h2>
-              <button
-                onClick={() => setShowAvatarPicker(false)}
-                className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-              >
+              <button onClick={() => setShowAvatarPicker(false)} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -3144,37 +3183,20 @@ function ProfilePage() {
             </p>
 
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {/* Keep Google Picture Option */}
-              <button
-                onClick={() => handleAvatarSelect(user.profilePic)}
-                disabled={saving}
-                className="relative group"
-              >
-                <img
-                  src={user.profilePic}
-                  alt="Your Google Picture"
-                  className="w-full aspect-square rounded-full border-4 border-purple-300 hover:border-purple-500 transition"
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs py-1 text-center rounded-b-full">
-                  Google Pic
-                </div>
-              </button>
+              {/* Keep Google Picture */}
+              {user.profilePic && (
+                <button onClick={() => handleAvatarSelect(user.profilePic)} disabled={saving} className="relative group">
+                  <img src={user.profilePic} alt="Google" className="w-full aspect-square rounded-full border-4 border-purple-300 hover:border-purple-500 transition" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs py-1 text-center rounded-b-full">
+                    Google
+                  </div>
+                </button>
+              )}
 
-              {/* Avatar Options */}
+              {/* Pinterest Avatars */}
               {avatarOptions.map((avatar, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleAvatarSelect(avatar.url)}
-                  disabled={saving}
-                  className="relative group"
-                  title={avatar.name}
-                >
-                  <img
-                    src={avatar.url}
-                    alt={avatar.name}
-                    className="w-full aspect-square rounded-full border-4 border-gray-300 hover:border-purple-500 transition"
-                  />
-                  <div className="absolute inset-0 bg-purple-600 bg-opacity-0 hover:bg-opacity-10 rounded-full transition"></div>
+                <button key={idx} onClick={() => handleAvatarSelect(avatar.url)} disabled={saving} className="relative group">
+                  <img src={avatar.url} alt={avatar.name} className="w-full aspect-square rounded-full border-4 border-gray-300 hover:border-purple-500 transition" />
                 </button>
               ))}
             </div>
@@ -3196,26 +3218,16 @@ function ProfilePage() {
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 h-32"></div>
         <div className="px-8 pb-8">
           <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 mb-6 gap-6">
-            {/* Profile Picture with Edit Button */}
+            {/* Profile Picture */}
             <div className="relative">
               <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
                 {user.profilePic ? (
-                  <img
-                    src={user.profilePic}
-                    alt={user.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={user.profilePic} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-white text-5xl font-bold">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </span>
+                  <span className="text-white text-5xl font-bold">{user.name?.charAt(0).toUpperCase()}</span>
                 )}
               </div>
-              <button
-                onClick={() => setShowAvatarPicker(true)}
-                className="absolute bottom-0 right-0 p-2 bg-purple-600 rounded-full text-white hover:bg-purple-700 transition shadow-lg"
-                title="Change Avatar"
-              >
+              <button onClick={() => setShowAvatarPicker(true)} className="absolute bottom-0 right-0 p-2 bg-purple-600 rounded-full text-white hover:bg-purple-700 transition shadow-lg" title="Change Avatar">
                 <Edit2 className="w-4 h-4" />
               </button>
             </div>
@@ -3228,35 +3240,21 @@ function ProfilePage() {
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className={`text-2xl font-bold px-3 py-2 rounded-lg border-2 w-full ${
-                      darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'bg-white border-gray-300 text-gray-800'
-                    }`}
+                    className={`text-2xl font-bold px-3 py-2 rounded-lg border-2 w-full ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
                     placeholder="Your name"
                   />
                   <textarea
                     value={editForm.bio}
                     onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                    className={`px-3 py-2 rounded-lg border-2 w-full ${
-                      darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300 text-gray-800'
-                    }`}
+                    className={`px-3 py-2 rounded-lg border-2 w-full ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-800'}`}
                     placeholder="Tell us about yourself..."
                     rows="2"
                   />
                 </div>
               ) : (
                 <>
-                  <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-2`}>
-                    {user.name}
-                  </h1>
-                  {user.bio && (
-                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2 italic`}>
-                      "{user.bio}"
-                    </p>
-                  )}
+                  <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-2`}>{user.name}</h1>
+                  {user.bio && <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2 italic`}>"{user.bio}"</p>}
                   <div className={`flex items-center justify-center md:justify-start gap-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <Mail className="w-4 h-4" />
                     <span>{user.email}</span>
@@ -3269,24 +3267,10 @@ function ProfilePage() {
             <div className="flex gap-3 flex-wrap justify-center">
               {isEditing ? (
                 <>
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditForm({
-                        name: user.name || '',
-                        bio: user.bio || ''
-                      });
-                    }}
-                    disabled={saving}
-                    className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all disabled:opacity-50"
-                  >
+                  <button onClick={() => { setIsEditing(false); setEditForm({ name: user.name || '', bio: user.bio || '' }); }} disabled={saving} className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all disabled:opacity-50">
                     Cancel
                   </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                    className="px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all flex items-center gap-2 disabled:opacity-50"
-                  >
+                  <button onClick={handleSaveProfile} disabled={saving} className="px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all flex items-center gap-2 disabled:opacity-50">
                     {saving ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -3302,17 +3286,11 @@ function ProfilePage() {
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all flex items-center gap-2"
-                  >
+                  <button onClick={() => setIsEditing(true)} className="px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all flex items-center gap-2">
                     <Edit2 className="w-5 h-5" />
                     Edit Profile
                   </button>
-                  <button
-                    onClick={handleLogout}
-                    className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all flex items-center gap-2 shadow-lg"
-                  >
+                  <button onClick={handleLogout} className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all flex items-center gap-2 shadow-lg">
                     <LogOut className="w-5 h-5" />
                     Sign Out
                   </button>
@@ -3439,15 +3417,9 @@ function Footer() {
           <p className="text-sm text-gray-500">
             Built with ❤️ for PeerBridge Mental Health Hacks 2025
           </p>
-          <div className="flex justify-center space-x-4 text-sm text-gray-500">
-            <a href="#" className="hover:text-purple-600">About</a>
-            <span>•</span>
-            <a href="#" className="hover:text-purple-600">Resources</a>
-            <span>•</span>
-            <a href="#" className="hover:text-purple-600">Contact</a>
-          </div>
         </div>
       </div>
     </footer>
   );
 }
+
