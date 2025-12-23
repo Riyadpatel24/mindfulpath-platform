@@ -1653,16 +1653,57 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
   const { darkMode, toggleTheme } = useTheme();
   const [toolsOpen, setToolsOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [hasSynced, setHasSynced] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('login') === 'success') {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-    checkAuthStatus();
-  }, []);
+  if (user) {
+    syncLocalDataToBackend();
+  }
+}, [user]);
+
+const syncLocalDataToBackend = async () => {
+  try {
+    const quizData = JSON.parse(localStorage.getItem("quizData"));
+    const featuresData = JSON.parse(localStorage.getItem("featuresData"));
+
+    if (!quizData && !featuresData) return;
+
+    await fetch(`${BACKEND_URL}/user/sync`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        quiz: quizData,
+        features: featuresData,
+      }),
+    });
+
+    console.log("✅ Local data synced to backend");
+  } catch (err) {
+    console.error("❌ Sync failed:", err);
+  }
+};
+
+
+  useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('login') === 'success') {
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  checkAuthStatus();
+}, []);
+
+useEffect(() => {
+  if (user && !hasSynced) {
+    syncLocalDataToBackend();
+    setHasSynced(true);
+  }
+}, [user]);
+
 
   const checkAuthStatus = async () => {
     try {
