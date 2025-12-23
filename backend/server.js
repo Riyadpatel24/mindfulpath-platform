@@ -1,8 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
-require("dotenv").config();
 const session = require("express-session");
+
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  require("dotenv").config();
+}
+
 require("./config/db");
 require("./passport");
 
@@ -11,21 +16,36 @@ const userdataRoutes = require("./routes/userdata");
 
 const app = express();
 
+// CORS - Allow both production and development origins
+const allowedOrigins = [
+  "https://mindfulpath-platform.vercel.app",
+  "https://mindfulpath-platform.onrender.com",
+  "http://localhost:3000"
+];
 
 app.use(cors({
-  origin: "https://mindfulpath-platform.vercel.app",
-  origin: "http://localhost:3000",
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
+// Session configuration - different for production
 app.use(session({
   secret: process.env.SESSION_SECRET || 'defaultsecret',
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: false,
+    secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 1 day
   }
 }));
@@ -37,6 +57,7 @@ app.use(express.json());
 app.use("/auth", authRoutes);
 app.use("/api", userdataRoutes);
 
+// Use Render's PORT or default to 5000 for local
 const PORT = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
@@ -44,5 +65,6 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("Backend is running on port", PORT);
+  console.log(`Backend is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
