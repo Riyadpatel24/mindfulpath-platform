@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
 const session = require("express-session");
+const MongoStore = require('connect-mongo');
 
 // Only load .env in development
 if (process.env.NODE_ENV !== 'production') {
@@ -36,11 +37,18 @@ app.use(cors({
   credentials: true
 }));
 
-// Session configuration - different for production
+// Session configuration with MongoDB store for production
 app.use(session({
   secret: process.env.SESSION_SECRET || 'defaultsecret',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    touchAfter: 24 * 3600, // lazy session update (in seconds)
+    crypto: {
+      secret: process.env.SESSION_SECRET || 'defaultsecret'
+    }
+  }),
   cookie: { 
     secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
     httpOnly: true,
