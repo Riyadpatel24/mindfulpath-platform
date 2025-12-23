@@ -6,16 +6,13 @@ router.get('/google',
 );
 
 router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: '/' }),
+    passport.authenticate('google', { failureRedirect: 'https://mindfulpath-platform.vercel.app' }),
     (req, res) => {
-        // Use CLIENT_URL environment variable for production
-        const frontendUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-        
-        res.redirect(frontendUrl);
+        // Redirect to frontend with success flag
+        res.redirect('https://mindfulpath-platform.vercel.app?login=success');
     }
 );
 
-// Logout route
 router.get('/logout', (req, res) => {
   req.logout((err) => {
     if (err) {
@@ -26,7 +23,7 @@ router.get('/logout', (req, res) => {
       if (err) {
         console.error('Session destroy error:', err);
       }
-      res.clearCookie('connect.sid'); // Clear the session cookie
+      res.clearCookie('connect.sid');
       res.json({ message: 'Logged out successfully' });
     });
   });

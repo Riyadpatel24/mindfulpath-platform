@@ -22,7 +22,7 @@ passport.use(new GoogleStrategy({
             googleId: profile.id,
             name: profile.displayName,
             email: profile.emails[0].value,
-            image: profile.photos[0].value
+            profilePic: profile.photos[0].value
         }).save();
     }
 
