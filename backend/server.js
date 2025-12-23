@@ -20,7 +20,6 @@ const app = express();
 const allowedOrigins = [
   "https://mindfulpath-platform.vercel.app",
   "https://mindfulpath-platform.onrender.com",
-  "http://localhost:3000"
 ];
 
 app.use(cors({
