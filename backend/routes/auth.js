@@ -8,10 +8,9 @@ router.get('/google',
 router.get('/google/callback',
     passport.authenticate('google', { failureRedirect: '/' }),
     (req, res) => {
-        const frontendUrl = process.env.NODE_ENV === 'production'
-            ? 'https://mindfulpath-platform.vercel.app'
-            : 'http://localhost:3000';
-
+        // Use CLIENT_URL environment variable for production
+        const frontendUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+        
         res.redirect(frontendUrl);
     }
 );
