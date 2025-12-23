@@ -1440,22 +1440,105 @@ function EmotionReflector() {
   const [entries, setEntries] = useState([]);
   const { darkMode } = useTheme();
 
-  const emotions = [
-    { name: 'Happy', emoji: '😊', color: 'bg-yellow-100 border-yellow-300' },
-    { name: 'Sad', emoji: '😢', color: 'bg-blue-100 border-blue-300' },
-    { name: 'Anxious', emoji: '😰', color: 'bg-purple-100 border-purple-300' },
-    { name: 'Angry', emoji: '😠', color: 'bg-red-100 border-red-300' },
-    { name: 'Calm', emoji: '😌', color: 'bg-green-100 border-green-300' },
-    { name: 'Excited', emoji: '🤩', color: 'bg-pink-100 border-pink-300' }
-  ];
+  return (
+    <div className={`min-h-screen ${
+      darkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+        : 'bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50'
+    }`}>
+      <Navigation 
+        currentPage={currentPage} 
+        setCurrentPage={setCurrentPage}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
+      />
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {currentPage === 'home' && <HomePage setCurrentPage={setCurrentPage} />}
+        {currentPage === 'emotion' && <EmotionReflector />}
+        {currentPage === 'analytics' && <MoodAnalytics />}
+        {currentPage === 'breathing' && <BreathingExercise />}
+        {currentPage === 'learn' && <LearnSection />}
+        {currentPage === 'quiz' && <QuizSection />}
+        {currentPage === 'todos' && <TodoSection />}
+        {currentPage === 'mentor' && <AIMentor />}
+        {currentPage === 'crisis' && <CrisisResources />}
+        {currentPage === 'journal' && <VoiceJournal/>}
+        {currentPage === 'data' && <DataManagement/>}
+        {currentPage === 'profile' && <ProfilePage />}
+        {currentPage === 'achievements' && <AchievementSystem />}
+        {currentPage === 'calendar' && <MoodCalendarHeatmap />}
+        {currentPage === 'cbt' && <CBTThoughtRecord />}
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
+function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuOpen }) {
+  const { darkMode, toggleTheme } = useTheme();
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [hasSynced, setHasSynced] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('moodHistory');
-    if (saved) {
-      try {
-        setEntries(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error loading mood history');
+  if (user) {
+    syncLocalDataToBackend();
+  }
+}, [user]);
+
+const syncLocalDataToBackend = async () => {
+  try {
+    const quizData = JSON.parse(localStorage.getItem("quizData"));
+    const featuresData = JSON.parse(localStorage.getItem("featuresData"));
+
+    if (!quizData && !featuresData) return;
+
+    await fetch(`${BACKEND_URL}/user/sync`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        quiz: quizData,
+        features: featuresData,
+      }),
+    });
+
+    console.log("✅ Local data synced to backend");
+  } catch (err) {
+    console.error("❌ Sync failed:", err);
+  }
+};
+
+
+  useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('login') === 'success') {
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  checkAuthStatus();
+}, []);
+
+useEffect(() => {
+  if (user && !hasSynced) {
+    syncLocalDataToBackend();
+    setHasSynced(true);
+  }
+}, [user]);
+
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/user`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
       }
     }
   }, []);
@@ -1483,6 +1566,28 @@ function EmotionReflector() {
     
     alert('✅ Mood saved successfully!');
   };
+  
+  const mainNavItems = [
+    { id: 'home', label: 'Home', icon: Heart },
+    { id: 'emotion', label: 'Emotions', icon: Brain },
+    { id: 'learn', label: 'Learn', icon: BookOpen },
+    { id: 'mentor', label: 'AI Mentor', icon: Sparkles },
+    { id: 'journal', label: 'Voice Journal', icon: Mic },
+  ];
+
+  const toolsItems = [
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+    { id: 'breathing', label: 'Breathe', icon: Wind },
+    { id: 'quiz', label: 'Quiz', icon: Award },
+    { id: 'todos', label: 'Goals', icon: ListTodo },
+    { id: 'crisis', label: 'Crisis', icon: Shield },
+    { id: 'data', label: 'Data', icon: Database },
+    { id: 'achievements', label: 'Achievements', icon: Award },
+    { id: 'calendar', label: 'Mood Calendar', icon: Calendar },
+    { id: 'cbt', label: 'CBT Records', icon: Brain },
+  ];
+
+  const allNavItems = [...mainNavItems, ...toolsItems];
 
   return (
     <div className="space-y-8">
@@ -1500,6 +1605,510 @@ function EmotionReflector() {
           <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
             Select your emotion
           </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {emotions.map(emotion => (
+              <button
+                key={emotion.name}
+                onClick={() => setSelectedEmotion(emotion.name)}
+                className={`p-4 rounded-xl border-2 transition-all ${emotion.color} ${
+                  selectedEmotion === emotion.name ? 'ring-4 ring-purple-300 scale-105' : 'hover:scale-105'
+                }`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+            
+            {/* Tools Dropdown */}
+            <div className="nav-dropdown">
+              <button
+                onClick={() => setToolsOpen(!toolsOpen)}
+                className={`nav-button ${darkMode ? 'dark' : 'light'}`}
+              >
+                <Target className="w-4 h-4" />
+                <span>Tools</span>
+                <span style={{ 
+                  transition: 'transform 0.2s',
+                  transform: toolsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  fontSize: '0.7rem',
+                  marginLeft: '4px'
+                }}>▼</span>
+              </button>
+              
+              {toolsOpen && (
+                <div className={`dropdown-menu ${darkMode ? 'dark' : 'light'}`}>
+                  {toolsItems.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setCurrentPage(item.id);
+                        setToolsOpen(false);
+                      }}
+                      className={`dropdown-item ${currentPage === item.id ? 'active' : ''} ${darkMode ? 'dark' : 'light'}`}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Profile/Login Button - Desktop with Dropdown */}
+            {loading ? (
+              <div className="ml-4 px-4 py-2">
+                <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : user ? (
+              <div className="relative ml-4">
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all"
+                >
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+                    {user.profileImage || user.profilePic ? (
+                      <img 
+                        src={user.profileImage || user.profilePic} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold">
+                        {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <span className="hidden md:inline">{user.name || user.email}</span>
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    {/* User Info Section */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center overflow-hidden">
+                          {user.profileImage || user.profilePic ? (
+                            <img 
+                              src={user.profileImage || user.profilePic} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white text-lg font-semibold">
+                              {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {user.name || 'User'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          setCurrentPage('profile');
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        My Profile
+                      </button>
+                    </div>
+
+                    {/* Logout */}
+                    <div className="border-t border-gray-200 pt-1">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={handleLogin}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-semibold flex items-center gap-2"
+                >
+                  <User className="w-5 h-5" />
+                  <span>Login</span>
+                </button>
+              </div>
+            )}
+            
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`theme-toggle ${darkMode ? 'dark' : 'light'}`}
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+          </div>
+
+          {/* Mobile Controls */}
+          <div className="mobile-controls">
+            <button 
+              onClick={toggleTheme}
+              className={`theme-toggle ${darkMode ? 'dark' : 'light'}`}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`mobile-menu-button ${darkMode ? 'dark' : 'light'}`}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="mobile-menu">
+            {allNavItems.map(item => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setCurrentPage(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className={`mobile-menu-item ${currentPage === item.id ? 'active' : ''} ${darkMode ? 'dark' : 'light'}`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+            
+            {/* Mobile Profile/Login Button */}
+            <div className={`border-t pt-4 mt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              {loading ? (
+                <div className="flex justify-center py-3">
+                  <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : user ? (
+                <button
+                  onClick={() => {
+                    setCurrentPage('profile');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold ${
+                    darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
+                  } text-white`}
+                >
+                  {(user.profilePic || user.profileImage) && (
+                    <img src={user.profilePic || user.profileImage} alt={user.name} className="w-6 h-6 rounded-full" />
+                  )}
+                  <User className="w-5 h-5" />
+                  Profile & Account
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    handleLogin();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-semibold"
+                >
+                  Login with Google
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+
+function HomePage({ setCurrentPage }) {
+  return (
+    <div className="space-y-12">
+      {/* Hero Section */}
+      <div className="text-center space-y-6 py-12">
+        <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+          Your Mental Health Journey Starts Here
+        </h1>
+        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          Track your emotions, learn about mental health, test your knowledge, and set meaningful goals - all in one supportive platform.
+        </p>
+      </div>
+
+      {/* Feature Cards */}
+
+<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <FeatureCard
+    icon={Brain}
+    title="Emotion Reflector"
+    description="Understand and track your emotions with our interactive reflection tool"
+    color="purple"
+    onClick={() => setCurrentPage('emotion')}
+  />
+  <FeatureCard
+    icon={TrendingUp}
+    title="Mood Analytics"
+    description="Visualize patterns and gain insights from your emotional journey"
+    color="pink"
+    onClick={() => setCurrentPage('analytics')}
+  />
+  <FeatureCard
+    icon={Wind}
+    title="Breathing Exercises"
+    description="Calm your mind with guided 4-7-8 breathing technique"
+    color="blue"
+    onClick={() => setCurrentPage('breathing')}
+  />
+  <FeatureCard
+    icon={BookOpen}
+    title="Learn & Grow"
+    description="Explore 6 essential mental health topics designed for beginners"
+    color="indigo"
+    onClick={() => setCurrentPage('learn')}
+  />
+  <FeatureCard
+    icon={Award}
+    title="Test Knowledge"
+    description="Take our quiz to learn more about mental health and wellness"
+    color="purple"
+    onClick={() => setCurrentPage('quiz')}
+  />
+  <FeatureCard
+    icon={ListTodo}
+    title="Monthly Goals"
+    description="Set and track your mental wellness goals month by month"
+    color="pink"
+    onClick={() => setCurrentPage('todos')}
+  />
+  <FeatureCard
+    icon={Sparkles}
+    title="AI Mentor"
+    description="Get 24/7 support and guidance from our AI mental health companion"
+    color="blue"
+    onClick={() => setCurrentPage('mentor')}
+  />
+  <FeatureCard
+    icon={Shield}
+    title="Crisis Resources"
+    description="Access immediate help and global crisis hotlines"
+    color="indigo"
+    onClick={() => setCurrentPage('crisis')}
+  />
+  <FeatureCard
+    icon={Mic}
+    title="Voice Journal"
+    description="Record your thoughts with voice-to-text journaling"
+    color="purple"
+    onClick={() => setCurrentPage('journal')}
+  />
+  <FeatureCard
+    icon={Database}
+    title="Data Management"
+    description="Export, import, and manage your mental health data"
+    color="pink"
+    onClick={() => setCurrentPage('data')}
+  />
+  <FeatureCard
+            icon={Award}
+            title="Achievements & Streaks"
+            description="Track your progress with daily streaks and unlock badges"
+            color="purple"
+            badge="NEW"
+            onClick={() => setCurrentPage('achievements')}
+          />
+          <FeatureCard
+            icon={Calendar}
+            title="Mood Calendar"
+            description="Visualize your emotional journey with an interactive heatmap"
+            color="pink"
+            badge="NEW"
+            onClick={() => setCurrentPage('calendar')}
+          />
+          <FeatureCard
+            icon={Brain}
+            title="CBT Thought Record"
+            description="Challenge negative thoughts with cognitive behavioral therapy"
+            color="blue"
+            badge="NEW"
+            onClick={() => setCurrentPage('cbt')}
+          />
+</div>
+
+      {/* Stats Section */}
+      <div className="bg-white rounded-2xl shadow-xl p-8 grid md:grid-cols-3 gap-8">
+        <StatCard number="6" label="Educational Topics" />
+        <StatCard number="10" label="Quiz Questions" />
+        <StatCard number="∞" label="Goals You Can Set" />
+      </div>
+
+      {/* About Section */}
+      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl shadow-xl p-8 text-white">
+        <h2 className="text-3xl font-bold mb-4">Why Mental Health Matters</h2>
+        <p className="text-lg opacity-90 mb-6">
+          Mental health is just as important as physical health. Whether you're dealing with stress, 
+          anxiety, or just want to learn more about emotional wellness, we're here to support you 
+          every step of the way.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <InfoPoint text="40+ million adults experience anxiety" />
+          <InfoPoint text="Treatment is highly effective" />
+          <InfoPoint text="Early awareness makes a difference" />
+          <InfoPoint text="You're not alone in this journey" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({ icon: Icon, title, description, color, onClick }) {
+  const colorClasses = {
+    purple: 'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700',
+    pink: 'from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700',
+    blue: 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700',
+    indigo: 'from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700'
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`bg-gradient-to-br ${colorClasses[color]} text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 text-left`}
+    >
+      <Icon className="w-12 h-12 mb-4" />
+      <h3 className="text-xl font-bold mb-2">{title}</h3>
+      <p className="text-sm opacity-90">{description}</p>
+    </button>
+  );
+}
+
+function StatCard({ number, label }) {
+  return (
+    <div className="text-center">
+      <div className="text-4xl font-bold text-purple-600 mb-2">{number}</div>
+      <div className="text-gray-600">{label}</div>
+    </div>
+  );
+}
+
+function InfoPoint({ text }) {
+  return (
+    <div className="flex items-center space-x-2">
+      <CheckCircle className="w-5 h-5 flex-shrink-0" />
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function EmotionReflector() {
+  const [selectedEmotion, setSelectedEmotion] = useState('');
+  const [intensity, setIntensity] = useState(5);
+  const [note, setNote] = useState('');
+  const [entries, setEntries] = useState([]);
+
+  const emotions = [
+    { name: 'Happy', emoji: '😊', color: 'bg-yellow-100 border-yellow-300' },
+    { name: 'Sad', emoji: '😢', color: 'bg-blue-100 border-blue-300' },
+    { name: 'Anxious', emoji: '😰', color: 'bg-purple-100 border-purple-300' },
+    { name: 'Angry', emoji: '😠', color: 'bg-red-100 border-red-300' },
+    { name: 'Calm', emoji: '😌', color: 'bg-green-100 border-green-300' },
+    { name: 'Excited', emoji: '🤩', color: 'bg-pink-100 border-pink-300' }
+  ];
+
+  // Load mood history from backend when component mounts
+  useEffect(() => {
+    loadMoodHistory();
+  }, []);
+
+  const loadMoodHistory = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/moods`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEntries(data);
+      }
+    } catch (error) {
+      console.error('Error loading mood history:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedEmotion) return;
+    
+    try {
+      // Save to backend
+      const response = await fetch(`${BACKEND_URL}/api/moods`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          emotion: selectedEmotion,
+          intensity,
+          note
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Add to local state immediately for better UX
+        const newEntry = {
+          id: Date.now(),
+          emotion: selectedEmotion,
+          intensity,
+          note,
+          timestamp: new Date().toLocaleString()
+        };
+        setEntries([newEntry, ...entries]);
+        
+        // Reset form
+        setSelectedEmotion('');
+        setIntensity(5);
+        setNote('');
+      }
+    } catch (error) {
+      console.error('Error saving mood:', error);
+      alert('Failed to save mood. Please try again.');
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-4xl font-bold text-gray-800">Emotion Reflector</h1>
+        <p className="text-gray-600">How are you feeling today?</p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+        {/* Emotion Selection */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Select your emotion</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {emotions.map(emotion => (
               <button
@@ -2376,7 +2985,6 @@ function QuizSection() {
 
 export { QuizSection };
 
-// Todo Section Component
 function TodoSection() {
   const [todos, setTodos] = useState([]);
   const [newTodo, setNewTodo] = useState('');
@@ -4334,8 +4942,1368 @@ function CBTThoughtRecord() {
           💡 What is CBT Thought Recording?
         </h3>
         <div className={`space-y-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>Your data is stored securely and encrypted</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>Only you can access your personal information</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>We never share your data with third parties</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <p>You can export or delete your data anytime</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AchievementSystem() {
+  const [achievements, setAchievements] = useState([]);
+  const [streaks, setStreaks] = useState({
+    mood: { current: 0, best: 0, lastDate: null },
+    journal: { current: 0, best: 0, lastDate: null },
+    breathing: { current: 0, best: 0, lastDate: null }
+  });
+  const { darkMode } = useTheme();
+
+  // Define all possible achievements
+  const allAchievements = [
+    // Streak Achievements
+    { id: 'mood_3day', title: 'Getting Started', description: '3-day mood tracking streak', icon: '🔥', type: 'mood', requirement: 3, earned: false },
+    { id: 'mood_7day', title: 'Week Warrior', description: '7-day mood tracking streak', icon: '⭐', type: 'mood', requirement: 7, earned: false },
+    { id: 'mood_30day', title: 'Monthly Master', description: '30-day mood tracking streak', icon: '👑', type: 'mood', requirement: 30, earned: false },
+    
+    { id: 'journal_3day', title: 'Journal Beginner', description: '3-day journaling streak', icon: '📝', type: 'journal', requirement: 3, earned: false },
+    { id: 'journal_7day', title: 'Consistent Writer', description: '7-day journaling streak', icon: '✍️', type: 'journal', requirement: 7, earned: false },
+    { id: 'journal_30day', title: 'Journaling Pro', description: '30-day journaling streak', icon: '📚', type: 'journal', requirement: 30, earned: false },
+    
+    { id: 'breathing_3day', title: 'Breath Novice', description: '3-day breathing practice streak', icon: '🌬️', type: 'breathing', requirement: 3, earned: false },
+    { id: 'breathing_7day', title: 'Calm Seeker', description: '7-day breathing practice streak', icon: '🧘', type: 'breathing', requirement: 7, earned: false },
+    { id: 'breathing_30day', title: 'Zen Master', description: '30-day breathing practice streak', icon: '☮️', type: 'breathing', requirement: 30, earned: false },
+    
+    // First Time Achievements
+    { id: 'first_mood', title: 'First Reflection', description: 'Track your first mood', icon: '🎯', type: 'first', requirement: 1, earned: false },
+    { id: 'first_journal', title: 'First Entry', description: 'Write your first journal entry', icon: '📖', type: 'first', requirement: 1, earned: false },
+    { id: 'first_breathing', title: 'First Breath', description: 'Complete your first breathing exercise', icon: '💨', type: 'first', requirement: 1, earned: false },
+    
+    // Milestone Achievements
+    { id: 'mood_10', title: 'Mood Tracker', description: 'Track 10 moods', icon: '📊', type: 'count', requirement: 10, earned: false },
+    { id: 'mood_50', title: 'Emotion Expert', description: 'Track 50 moods', icon: '🎓', type: 'count', requirement: 50, earned: false },
+    { id: 'mood_100', title: 'Century Club', description: 'Track 100 moods', icon: '💯', type: 'count', requirement: 100, earned: false },
+    
+    { id: 'journal_10', title: 'Regular Writer', description: 'Write 10 journal entries', icon: '📔', type: 'count', requirement: 10, earned: false },
+    { id: 'journal_50', title: 'Prolific Author', description: 'Write 50 journal entries', icon: '🏆', type: 'count', requirement: 50, earned: false },
+    
+    { id: 'goals_5', title: 'Goal Setter', description: 'Create 5 goals', icon: '🎯', type: 'count', requirement: 5, earned: false },
+    { id: 'goals_completed_10', title: 'Goal Crusher', description: 'Complete 10 goals', icon: '💪', type: 'count', requirement: 10, earned: false },
+  ];
+
+  // Load achievements and streaks from localStorage
+  useEffect(() => {
+    const savedAchievements = localStorage.getItem('achievements');
+    const savedStreaks = localStorage.getItem('streaks');
+    
+    if (savedAchievements) {
+      setAchievements(JSON.parse(savedAchievements));
+    } else {
+      setAchievements(allAchievements);
+    }
+    
+    if (savedStreaks) {
+      setStreaks(JSON.parse(savedStreaks));
+    }
+    
+    // Check and update achievements based on current data
+    checkAchievements();
+  }, []);
+
+  // Calculate if date is today
+  const isToday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // Calculate if date is yesterday
+  const isYesterday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return date.toDateString() === yesterday.toDateString();
+  };
+
+  // Update streak
+  const updateStreak = (type) => {
+    const today = new Date().toISOString();
+    const currentStreak = { ...streaks };
+    
+    if (isToday(currentStreak[type].lastDate)) {
+      // Already logged today, don't update
+      return currentStreak;
+    } else if (isYesterday(currentStreak[type].lastDate)) {
+      // Continue streak
+      currentStreak[type].current += 1;
+      currentStreak[type].best = Math.max(currentStreak[type].best, currentStreak[type].current);
+    } else {
+      // Streak broken, start new
+      currentStreak[type].current = 1;
+    }
+    
+    currentStreak[type].lastDate = today;
+    setStreaks(currentStreak);
+    localStorage.setItem('streaks', JSON.stringify(currentStreak));
+    
+    // Check for new achievements
+    checkAchievements(currentStreak);
+    
+    return currentStreak;
+  };
+
+  // Check and unlock achievements
+  const checkAchievements = (currentStreaks = streaks) => {
+    const moodHistory = JSON.parse(localStorage.getItem('moodHistory') || '[]');
+    const journalEntries = JSON.parse(localStorage.getItem('voiceJournalEntries') || '[]');
+    const goals = JSON.parse(localStorage.getItem('mentalHealthGoals') || '[]');
+    
+    let updatedAchievements = [...(achievements.length > 0 ? achievements : allAchievements)];
+    let newUnlocks = [];
+    
+    updatedAchievements = updatedAchievements.map(achievement => {
+      if (achievement.earned) return achievement;
+      
+      let shouldEarn = false;
+      
+      // Streak achievements
+      if (achievement.type === 'mood' && currentStreaks.mood.current >= achievement.requirement) {
+        shouldEarn = true;
+      } else if (achievement.type === 'journal' && currentStreaks.journal.current >= achievement.requirement) {
+        shouldEarn = true;
+      } else if (achievement.type === 'breathing' && currentStreaks.breathing.current >= achievement.requirement) {
+        shouldEarn = true;
+      }
+      
+      // First time achievements
+      if (achievement.id === 'first_mood' && moodHistory.length >= 1) shouldEarn = true;
+      if (achievement.id === 'first_journal' && journalEntries.length >= 1) shouldEarn = true;
+      
+      // Count achievements
+      if (achievement.id === 'mood_10' && moodHistory.length >= 10) shouldEarn = true;
+      if (achievement.id === 'mood_50' && moodHistory.length >= 50) shouldEarn = true;
+      if (achievement.id === 'mood_100' && moodHistory.length >= 100) shouldEarn = true;
+      if (achievement.id === 'journal_10' && journalEntries.length >= 10) shouldEarn = true;
+      if (achievement.id === 'journal_50' && journalEntries.length >= 50) shouldEarn = true;
+      if (achievement.id === 'goals_5' && goals.length >= 5) shouldEarn = true;
+      if (achievement.id === 'goals_completed_10' && goals.filter(g => g.completed).length >= 10) shouldEarn = true;
+      
+      if (shouldEarn && !achievement.earned) {
+        newUnlocks.push(achievement);
+        return { ...achievement, earned: true, earnedDate: new Date().toISOString() };
+      }
+      
+      return achievement;
+    });
+    
+    setAchievements(updatedAchievements);
+    localStorage.setItem('achievements', JSON.stringify(updatedAchievements));
+    
+    // Show notification for new achievements
+    if (newUnlocks.length > 0) {
+      newUnlocks.forEach(ach => {
+        setTimeout(() => {
+          alert(`🎉 Achievement Unlocked!\n\n${ach.icon} ${ach.title}\n${ach.description}`);
+        }, 300);
+      });
+    }
+  };
+
+  // Expose function to be called from other components
+  useEffect(() => {
+    window.updateAchievementStreak = updateStreak;
+  }, [streaks]);
+
+  const earnedAchievements = achievements.filter(a => a.earned);
+  const lockedAchievements = achievements.filter(a => !a.earned);
+  const totalAchievements = achievements.length;
+  const earnedCount = earnedAchievements.length;
+  const completionPercentage = totalAchievements > 0 ? Math.round((earnedCount / totalAchievements) * 100) : 0;
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          🏆 Achievements & Streaks
+        </h1>
+        <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+          Track your progress and unlock achievements
+        </p>
+      </div>
+
+      {/* Progress Overview */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Overall Progress
+          </h2>
+          <div className="text-right">
+            <div className="text-4xl font-bold text-purple-600">{earnedCount}/{totalAchievements}</div>
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Achievements</div>
+          </div>
+        </div>
+        <div className={`w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-4`}>
+          <div
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-4 rounded-full transition-all duration-500 flex items-center justify-center text-white text-xs font-bold"
+            style={{ width: `${completionPercentage}%` }}
+          >
+            {completionPercentage > 10 && `${completionPercentage}%`}
+          </div>
+        </div>
+      </div>
+
+      {/* Current Streaks */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="bg-gradient-to-br from-yellow-500 to-orange-500 text-white rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-5xl">🔥</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{streaks.mood.current}</div>
+              <div className="text-sm opacity-90">Day Streak</div>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-1">Mood Tracking</h3>
+          <p className="text-sm opacity-90">Best: {streaks.mood.best} days</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-5xl">📝</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{streaks.journal.current}</div>
+              <div className="text-sm opacity-90">Day Streak</div>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-1">Journaling</h3>
+          <p className="text-sm opacity-90">Best: {streaks.journal.best} days</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-teal-500 text-white rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-5xl">🧘</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{streaks.breathing.current}</div>
+              <div className="text-sm opacity-90">Day Streak</div>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-1">Breathing</h3>
+          <p className="text-sm opacity-90">Best: {streaks.breathing.best} days</p>
+        </div>
+      </div>
+
+      {/* Earned Achievements */}
+      {earnedAchievements.length > 0 && (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            ✨ Earned Achievements ({earnedAchievements.length})
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {earnedAchievements.map(achievement => (
+              <div
+                key={achievement.id}
+                className={`p-4 rounded-xl border-2 border-yellow-400 ${
+                  darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50'
+                } transform hover:scale-105 transition-all`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="text-4xl">{achievement.icon}</div>
+                  <div className="flex-1">
+                    <h3 className={`font-bold ${darkMode ? 'text-yellow-300' : 'text-yellow-900'}`}>
+                      {achievement.title}
+                    </h3>
+                    <p className={`text-sm ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                      {achievement.description}
+                    </p>
+                  </div>
+                </div>
+                {achievement.earnedDate && (
+                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Earned: {new Date(achievement.earnedDate).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Locked Achievements */}
+      {lockedAchievements.length > 0 && (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            🔒 Locked Achievements ({lockedAchievements.length})
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lockedAchievements.map(achievement => (
+              <div
+                key={achievement.id}
+                className={`p-4 rounded-xl border-2 ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700' 
+                    : 'bg-gray-50 border-gray-300'
+                } opacity-60`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="text-4xl grayscale">{achievement.icon}</div>
+                  <div className="flex-1">
+                    <h3 className={`font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {achievement.title}
+                    </h3>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {achievement.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tips */}
+      <div className={`${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+          💡 Tips to Earn Achievements
+        </h3>
+        <ul className={`space-y-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <li>• Track your mood daily to build streaks</li>
+          <li>• Write in your journal consistently</li>
+          <li>• Practice breathing exercises regularly</li>
+          <li>• Set and complete your wellness goals</li>
+          <li>• Come back every day - consistency is key!</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// Export function to update streaks from other components
+export { AchievementSystem };
+
+// Mood Calendar Heatmap Component
+function MoodCalendarHeatmap() {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [moodHistory, setMoodHistory] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const { darkMode } = useTheme();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('moodHistory');
+    if (saved) {
+      try {
+        setMoodHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading mood history');
+      }
+    }
+  }, []);
+
+  // Get calendar days for current month
+  const getCalendarDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const days = [];
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    
+    return days;
+  };
+
+  // Get mood data for a specific date
+  const getMoodForDate = (date) => {
+    if (!date) return null;
+    
+    const dateStr = date.toLocaleDateString();
+    const moods = moodHistory.filter(mood => {
+      const moodDate = new Date(mood.timestamp);
+      return moodDate.toLocaleDateString() === dateStr;
+    });
+    
+    return moods;
+  };
+
+  // Calculate average intensity for a day
+  const getAverageIntensity = (moods) => {
+    if (moods.length === 0) return 0;
+    const sum = moods.reduce((acc, mood) => acc + mood.intensity, 0);
+    return sum / moods.length;
+  };
+
+  // Get color based on average intensity
+  const getColorForIntensity = (intensity) => {
+    if (intensity === 0) return darkMode ? 'bg-gray-800' : 'bg-gray-100';
+    if (intensity <= 3) return 'bg-red-500';
+    if (intensity <= 5) return 'bg-orange-500';
+    if (intensity <= 7) return 'bg-yellow-500';
+    if (intensity <= 9) return 'bg-green-500';
+    return 'bg-emerald-500';
+  };
+
+  // Navigate months
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+  };
+
+  const days = getCalendarDays();
+  const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Calculate stats for current month
+  const monthMoods = moodHistory.filter(mood => {
+    const moodDate = new Date(mood.timestamp);
+    return moodDate.getMonth() === currentMonth.getMonth() && 
+           moodDate.getFullYear() === currentMonth.getFullYear();
+  });
+  
+  const daysTracked = new Set(monthMoods.map(m => new Date(m.timestamp).toLocaleDateString())).size;
+  const avgIntensity = monthMoods.length > 0 ? (monthMoods.reduce((acc, m) => acc + m.intensity, 0) / monthMoods.length).toFixed(1) : 0;
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          📅 Mood Calendar
+        </h1>
+        <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+          Visualize your emotional journey over time
+        </p>
+      </div>
+
+      {/* Month Stats */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <Calendar className="w-10 h-10 text-purple-500" />
+            <div>
+              <div className="text-3xl font-bold text-purple-600">{daysTracked}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Days Tracked</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <Heart className="w-10 h-10 text-pink-500" />
+            <div>
+              <div className="text-3xl font-bold text-pink-600">{monthMoods.length}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Check-ins</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-blue-500" />
+            <div>
+              <div className="text-3xl font-bold text-blue-600">{avgIntensity}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Intensity</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Navigation */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={previousMonth}
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+          >
+            <span className="text-2xl">←</span>
+          </button>
+          
+          <div className="text-center">
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              {monthName}
+            </h2>
+            <button
+              onClick={goToToday}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+            >
+              Go to Today
+            </button>
+          </div>
+          
+          <button
+            onClick={nextMonth}
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+          >
+            <span className="text-2xl">→</span>
+          </button>
+        </div>
+
+        {/* Week Day Headers */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {weekDays.map(day => (
+            <div
+              key={day}
+              className={`text-center font-semibold text-sm py-2 ${
+                darkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-2">
+          {days.map((date, index) => {
+            if (!date) {
+              return <div key={`empty-${index}`} className="aspect-square" />;
+            }
+
+            const moods = getMoodForDate(date);
+            const avgIntensity = getAverageIntensity(moods);
+            const colorClass = getColorForIntensity(avgIntensity);
+            const isToday = date.toDateString() === new Date().toDateString();
+            const dayNumber = date.getDate();
+
+            return (
+              <button
+                key={date.toISOString()}
+                onClick={() => setSelectedDay(date)}
+                className={`aspect-square rounded-lg ${colorClass} ${
+                  isToday ? 'ring-4 ring-purple-500' : ''
+                } hover:opacity-80 transition-all relative group`}
+              >
+                <div className={`absolute inset-0 flex items-center justify-center ${
+                  avgIntensity === 0 
+                    ? darkMode ? 'text-gray-500' : 'text-gray-400'
+                    : 'text-white'
+                } font-semibold`}>
+                  {dayNumber}
+                </div>
+                
+                {/* Tooltip on hover */}
+                <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 ${
+                  darkMode ? 'bg-gray-900' : 'bg-gray-800'
+                } text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10`}>
+                  {moods.length > 0 
+                    ? `${moods.length} check-in${moods.length > 1 ? 's' : ''} • Avg: ${avgIntensity.toFixed(1)}`
+                    : 'No data'
+                  }
+                </div>
+                
+                {moods.length > 1 && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-white rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-6 flex items-center justify-center gap-4 flex-wrap">
+          <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Intensity:
+          </span>
+          <div className="flex items-center gap-2">
+            <div className={`w-6 h-6 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>None</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-red-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>1-3</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-orange-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>4-5</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-yellow-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>6-7</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-green-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>8-9</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-emerald-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>10</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Day Details */}
+      {selectedDay && (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              {selectedDay.toLocaleDateString('default', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </h2>
+            <button
+              onClick={() => setSelectedDay(null)}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+            >
+              <X className={darkMode ? 'text-gray-300' : 'text-gray-600'} />
+            </button>
+          </div>
+
+          {(() => {
+            const dayMoods = getMoodForDate(selectedDay);
+            
+            if (dayMoods.length === 0) {
+              return (
+                <div className="text-center py-12">
+                  <Calendar className={`w-16 h-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+                  <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No mood entries for this day
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-4">
+                {dayMoods.map((mood, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-xl ${
+                      darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'
+                    } border-2`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-4xl">
+                          {mood.emotion === 'Happy' && '😊'}
+                          {mood.emotion === 'Sad' && '😢'}
+                          {mood.emotion === 'Anxious' && '😰'}
+                          {mood.emotion === 'Angry' && '😠'}
+                          {mood.emotion === 'Calm' && '😌'}
+                          {mood.emotion === 'Excited' && '🤩'}
+                        </span>
+                        <div>
+                          <div className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                            {mood.emotion}
+                          </div>
+                          <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Intensity: {mood.intensity}/10
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {new Date(mood.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    {mood.note && (
+                      <p className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} mt-2`}>
+                        {mood.note}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Tips */}
+      <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+          💡 Understanding Your Mood Calendar
+        </h3>
+        <ul className={`space-y-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <li>• Track your mood daily to see patterns emerge</li>
+          <li>• Brighter colors indicate higher intensity/better moods</li>
+          <li>• Click any day to see detailed entries</li>
+          <li>• Multiple check-ins per day show a white dot</li>
+          <li>• Use this to identify triggers and positive patterns</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export { MoodCalendarHeatmap };
+
+function CBTThoughtRecord() {
+  const [records, setRecords] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    situation: '',
+    thought: '',
+    feeling: '',
+    feelingIntensity: 5,
+    evidence: '',
+    alternative: '',
+    outcome: '',
+    outcomeIntensity: 5
+  });
+  const { darkMode } = useTheme();
+
+  // Load saved records from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('cbtRecords');
+    if (saved) {
+      try {
+        setRecords(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading CBT records');
+      }
+    }
+  }, []);
+
+  // Common cognitive distortions reference
+  const cognitiveDistortions = [
+    { name: 'All-or-Nothing', description: 'Seeing things in black and white categories' },
+    { name: 'Overgeneralization', description: 'Seeing a single negative event as a never-ending pattern' },
+    { name: 'Mental Filter', description: 'Picking out a single negative detail and dwelling on it' },
+    { name: 'Jumping to Conclusions', description: 'Making negative interpretations without evidence' },
+    { name: 'Catastrophizing', description: 'Expecting the worst possible outcome' },
+    { name: 'Emotional Reasoning', description: 'Assuming emotions reflect reality' },
+    { name: 'Should Statements', description: 'Criticizing yourself with "should" or "must"' },
+    { name: 'Labeling', description: 'Attaching negative labels to yourself' }
+  ];
+
+  // Handler functions
+  const handleInputChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const nextStep = () => {
+    if (currentStep < 5) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.situation.trim().length > 0;
+      case 2:
+        return formData.thought.trim().length > 0;
+      case 3:
+        return formData.feeling.trim().length > 0;
+      case 4:
+        return formData.alternative.trim().length > 0;
+      case 5:
+        return formData.outcome.trim().length > 0;
+      default:
+        return false;
+    }
+  };
+
+  const saveRecord = () => {
+    const newRecord = {
+      id: Date.now(),
+      ...formData,
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString()
+    };
+
+    const updatedRecords = [newRecord, ...records];
+    setRecords(updatedRecords);
+    localStorage.setItem('cbtRecords', JSON.stringify(updatedRecords));
+
+    // Reset form
+    setFormData({
+      situation: '',
+      thought: '',
+      feeling: '',
+      feelingIntensity: 5,
+      evidence: '',
+      alternative: '',
+      outcome: '',
+      outcomeIntensity: 5
+    });
+    setCurrentStep(1);
+    setShowForm(false);
+
+    alert('✅ Thought record saved successfully!');
+  };
+
+  const deleteRecord = (id) => {
+    if (window.confirm('Are you sure you want to delete this thought record?')) {
+      const updatedRecords = records.filter(r => r.id !== id);
+      setRecords(updatedRecords);
+      localStorage.setItem('cbtRecords', JSON.stringify(updatedRecords));
+    }
+  };
+
+  // CBT Thought Record - PART 2: Form View with Progress Bar and Steps 1-2
+// This goes after Part 1, inside the component
+
+  // Form view - when showForm is true
+  if (showForm) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            🧠 CBT Thought Record
+          </h1>
+          <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+            Challenge negative thoughts with cognitive behavioral therapy
+          </p>
+        </div>
+
+        {/* Progress Bar */}
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
+          <div className="flex items-center justify-between mb-4">
+            <span className={`text-sm font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Step {currentStep} of 5
+            </span>
+            <span className="text-sm font-semibold text-purple-600">{(currentStep / 5 * 100).toFixed(0)}%</span>
+          </div>
+          <div className={`w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-3`}>
+            <div
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${(currentStep / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Form Steps */}
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          
+          {/* STEP 1: Describe the Situation */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  1. Describe the Situation
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  What happened? When and where did it occur?
+                </p>
+              </div>
+              <textarea
+                value={formData.situation}
+                onChange={(e) => handleInputChange('situation', e.target.value)}
+                placeholder="Example: I sent a text to my friend 3 hours ago and they haven't responded..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> Be specific. Include who, what, when, where. Stick to facts, not interpretations.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Automatic Thought */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  2. What Was Your Automatic Thought?
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  What went through your mind? What did you think this meant?
+                </p>
+              </div>
+              <textarea
+                value={formData.thought}
+                onChange={(e) => handleInputChange('thought', e.target.value)}
+                placeholder="Example: They're ignoring me. They don't want to be my friend anymore. I must have said something wrong..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> Write down the thought exactly as it occurred. Don't censor or rationalize yet.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Buttons - shown on all steps */}
+          <div className="flex gap-4 mt-8">
+            {currentStep > 1 && (
+              <button
+                onClick={previousStep}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                  darkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                }`}
+              >
+                ← Previous
+              </button>
+            )}
+            
+            <button
+              onClick={() => setShowForm(false)}
+              className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                darkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={currentStep === 5 ? saveRecord : nextStep}
+              disabled={!canProceed()}
+              className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+                canProceed()
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              {currentStep === 5 ? '✓ Save Record' : 'Next →'}
+            </button>
+          </div>
+        </div>
+
+       // CBT Thought Record - PART 3 & 4: Steps 3-5 and Main List View
+// Add these steps after Step 2 in the form (inside the form div, before navigation buttons)
+
+          {/* STEP 3: Emotion & Intensity */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  3. What Did You Feel?
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Name the emotion and rate its intensity
+                </p>
+              </div>
+              
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Emotion(s):
+                </label>
+                <input
+                  type="text"
+                  value={formData.feeling}
+                  onChange={(e) => handleInputChange('feeling', e.target.value)}
+                  placeholder="Example: Anxious, sad, rejected, worried..."
+                  className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    darkMode 
+                      ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-800'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Intensity: <span className="text-purple-600 font-bold">{formData.feelingIntensity}/10</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={formData.feelingIntensity}
+                  onChange={(e) => handleInputChange('feelingIntensity', parseInt(e.target.value))}
+                  className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex justify-between text-xs mt-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Mild</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Moderate</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Intense</span>
+                </div>
+              </div>
+
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> You can have multiple emotions. Focus on the strongest one first.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Alternative Thought */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  4. Challenge Your Thought
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  What's a more balanced or realistic way to think about this?
+                </p>
+              </div>
+
+              {/* Evidence Questions */}
+              <div className={`${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'} rounded-lg p-4 space-y-2`}>
+                <p className={`font-semibold ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+                  Consider these questions:
+                </p>
+                <ul className={`text-sm space-y-1 ${darkMode ? 'text-purple-200' : 'text-purple-800'}`}>
+                  <li>• What's the evidence for and against this thought?</li>
+                  <li>• Am I jumping to conclusions?</li>
+                  <li>• What would I tell a friend in this situation?</li>
+                  <li>• Is there another way to look at this?</li>
+                  <li>• What's the worst, best, and most realistic outcome?</li>
+                </ul>
+              </div>
+
+              <textarea
+                value={formData.alternative}
+                onChange={(e) => handleInputChange('alternative', e.target.value)}
+                placeholder="Example: There could be many reasons they haven't responded - they might be busy, at work, or their phone died. Not responding to one text doesn't mean they don't want to be my friend. I'm jumping to conclusions without evidence..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> You don't have to believe it 100%. Just find a thought that's more balanced and realistic.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Outcome */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  5. What's the Outcome?
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  After challenging your thought, how do you feel now?
+                </p>
+              </div>
+
+              <textarea
+                value={formData.outcome}
+                onChange={(e) => handleInputChange('outcome', e.target.value)}
+                placeholder="Example: I feel a bit calmer. Still slightly anxious, but not as convinced they're mad at me. I can wait and see what happens instead of spiraling..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  New Emotion Intensity: <span className="text-green-600 font-bold">{formData.outcomeIntensity}/10</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={formData.outcomeIntensity}
+                  onChange={(e) => handleInputChange('outcomeIntensity', parseInt(e.target.value))}
+                  className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                />
+                <div className="flex justify-between text-xs mt-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Much Better</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Same</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Worse</span>
+                </div>
+              </div>
+
+              {formData.outcomeIntensity < formData.feelingIntensity && (
+                <div className={`${darkMode ? 'bg-green-900/30' : 'bg-green-50'} rounded-lg p-4`}>
+                  <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+                    ✅ <strong>Great work!</strong> You reduced your emotional intensity by {formData.feelingIntensity - formData.outcomeIntensity} points.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+        {/* Cognitive Distortions Reference (shown in form) */}
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 mt-8`}>
+          <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Common Cognitive Distortions
+          </h3>
+          <div className="grid md:grid-cols-2 gap-4">
+            {cognitiveDistortions.map((distortion, idx) => (
+              <div key={idx} className={`p-3 rounded-lg ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+                <div className={`font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                  {distortion.name}
+                </div>
+                <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {distortion.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // PART 4: MAIN VIEW - Record List (when showForm is false)
+  // ============================================================
+  
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          🧠 CBT Thought Record
+        </h1>
+        <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+          Challenge negative thoughts with cognitive behavioral therapy
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <Brain className="w-10 h-10 text-purple-500" />
+            <div>
+              <div className="text-3xl font-bold text-purple-600">{records.length}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Records</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-green-500" />
+            <div>
+              <div className="text-3xl font-bold text-green-600">
+                {records.length > 0 
+                  ? (records.reduce((sum, r) => sum + (r.feelingIntensity - r.outcomeIntensity), 0) / records.length).toFixed(1)
+                  : '0'
+                }
+              </div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Improvement</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-10 h-10 text-blue-500" />
+            <div>
+              <div className="text-3xl font-bold text-blue-600">
+                {records.filter(r => r.outcomeIntensity < r.feelingIntensity).length}
+              </div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Successful</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* New Record Button */}
+      <div className="text-center">
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold text-lg hover:shadow-xl transition-all transform hover:scale-105"
+        >
+          + New Thought Record
+        </button>
+      </div>
+
+      {/* Records List */}
+      {records.length > 0 ? (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Your Thought Records ({records.length})
+          </h2>
+          <div className="space-y-4">
+            {records.map(record => (
+              <div
+                key={record.id}
+                className={`p-6 rounded-xl border-2 ${
+                  darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
+                      {record.date} at {record.time}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Before:
+                        </span>
+                        <span className="text-lg font-bold text-red-600">
+                          {record.feelingIntensity}/10
+                        </span>
+                      </div>
+                      <span className="text-gray-400">→</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          After:
+                        </span>
+                        <span className="text-lg font-bold text-green-600">
+                          {record.outcomeIntensity}/10
+                        </span>
+                      </div>
+                      {record.outcomeIntensity < record.feelingIntensity && (
+                        <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                          ↓ {record.feelingIntensity - record.outcomeIntensity} points
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteRecord(record.id)}
+                    className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'} text-red-600`}
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-1`}>
+                      Situation:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.situation}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-1`}>
+                      Automatic Thought:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.thought}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-1`}>
+                      Feeling: {record.feeling}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-green-400' : 'text-green-700'} mb-1`}>
+                      Alternative Thought:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.alternative}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-1`}>
+                      Outcome:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.outcome}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-12 text-center`}>
+          <Brain className={`w-16 h-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+          <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            No thought records yet
+          </h3>
+          <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>
+            Click "New Thought Record" to start challenging your negative thoughts
+          </p>
+        </div>
+      )}
+
+      {/* What is CBT Info Section */}
+      <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+          💡 What is CBT Thought Recording?
+        </h3>
+        <div className={`space-y-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           <p>
             Cognitive Behavioral Therapy (CBT) is an evidence-based approach that helps you identify and challenge negative thought patterns.
+          </p>
+          <p className="font-semibold">How it works:</p>
+          <ul className="space-y-2 ml-4">
+            <li>• Identify the situation that triggered negative feelings</li>
+            <li>• Recognize automatic negative thoughts</li>
+            <li>• Notice the emotions and their intensity</li>
+            <li>• Challenge thoughts with evidence and alternative perspectives</li>
+            <li>• Observe how your emotions change</li>
+          </ul>
+          <p className="mt-4">
+            <strong>Research shows:</strong> Regular CBT practice can significantly reduce anxiety and depression symptoms.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { CBTThoughtRecord };
+
+function Footer() {
+  return (
+    <footer className="bg-white mt-16 py-8 border-t">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center space-x-2">
+            <Sparkles className="w-6 h-6 text-purple-600" />
+            <span className="text-xl font-bold text-gray-800">MindfulPath</span>
+          </div>
+          <p className="text-gray-600">
+            Supporting mental health awareness and wellness for all
           </p>
           <p className="font-semibold">How it works:</p>
           <ul className="space-y-2 ml-4">

@@ -5,26 +5,35 @@ router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-router.get('/google/callback',
-  passport.authenticate('google', {
-    failureRedirect: 'https://mindfulpath-platform.vercel.app'
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: "/login",
   }),
   (req, res) => {
-    res.redirect('https://mindfulpath-platform.vercel.app?login=success');
+    const redirectUrl =
+      req.headers.origin ||
+      req.headers.referer ||
+      process.env.FRONTEND_URL;
+
+    res.redirect(`${redirectUrl}?login=success`);
   }
 );
 
-router.get('/user', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Not authenticated' });
-  }
 
-  res.json({
-    id: req.user._id,
-    name: req.user.name,
-    email: req.user.email,
-    profilePic: req.user.profilePic,
-    bio: req.user.bio
+router.get('/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).json({ message: 'Logout failed' });
+    }
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+      }
+      res.clearCookie('connect.sid');
+      res.json({ message: 'Logged out successfully' });
+    });
   });
 });
 
