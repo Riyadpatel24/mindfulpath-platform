@@ -3,11 +3,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import './App.css';
 
 const API_BASE = 'http://localhost:5000/api';
-// const BACKEND_URL = "https://mindfulpath-platform.onrender.com";
-
-const BACKEND_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000' 
-  : 'https://mindfulpath-platform.onrender.com';
+const BACKEND_URL = "https://mindfulpath-platform.onrender.com";
 
 const ThemeContext = createContext();
 
@@ -828,13 +824,7 @@ function VoiceJournal() {
     };
     const handleOffline = () => {
       setIsOnline(false);
-      if (isRecording && recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          console.error('Error stopping recognition:', e);
-        }
-      }
+      if (isRecording) stopRecording();
       setErrorMessage('❌ You are offline. Voice recognition needs internet connection.');
     };
 
@@ -908,32 +898,25 @@ function VoiceJournal() {
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setIsRecording(false);
-      
-      if (event.error === 'network') {
-        setErrorMessage('🌐 Unable to connect to speech service. Please check your internet connection and try again.');
-      } else if (event.error === 'no-speech') {
-        setErrorMessage('🎤 No speech detected. Please speak clearly into your microphone.');
-        setTimeout(() => setErrorMessage(''), 4000);
-      } else if (event.error === 'not-allowed') {
-        setErrorMessage('❌ Microphone access denied. Please allow microphone access in your browser settings.');
-      } else if (event.error === 'aborted') {
-        // Ignore aborted errors
-        return;
-      } else if (event.error === 'service-not-allowed') {
-        setErrorMessage('❌ Speech recognition service is not available. Please try typing instead.');
-      } else {
-        setErrorMessage(`❌ Speech recognition error: ${event.error}. You can still type your journal entry.`);
-      }
-    };
-
-    // THIS IS THE FIX - ADD recognition.onend HERE (inside useEffect, after onerror)
-    recognition.onend = () => {
-      console.log('Recognition ended');
-      setIsRecording(false);
-    };
-
+  console.error('Speech recognition error:', event.error);
+  setIsRecording(false);
+  
+  if (event.error === 'network') {
+    setErrorMessage('🌐 Unable to connect to speech service. Please check your internet connection and try again.');
+  } else if (event.error === 'no-speech') {
+    setErrorMessage('🎤 No speech detected. Please speak clearly into your microphone.');
+    setTimeout(() => setErrorMessage(''), 4000);
+  } else if (event.error === 'not-allowed') {
+    setErrorMessage('❌ Microphone access denied. Please allow microphone access in your browser settings.');
+  } else if (event.error === 'aborted') {
+    // Ignore aborted errors
+    return;
+  } else if (event.error === 'service-not-allowed') {
+    setErrorMessage('❌ Speech recognition service is not available. Please try typing instead.');
+  } else {
+    setErrorMessage(`❌ Speech recognition error: ${event.error}. You can still type your journal entry.`);
+  }
+};
     recognitionRef.current = recognition;
 
     return () => {
@@ -948,57 +931,60 @@ function VoiceJournal() {
   }, [isMobile]);
 
   const startRecording = async () => {
-    // Check internet connection
-    if (!navigator.onLine) {
-      setErrorMessage('❌ No internet connection. Voice recognition requires internet. You can still type your journal entry.');
-      return;
-    }
+  // Check internet connection
+  if (!navigator.onLine) {
+    setErrorMessage('❌ No internet connection. Voice recognition requires internet. You can still type your journal entry.');
+    return;
+  }
 
-    // Test connection to speech service
-    try {
-      await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
-    } catch (error) {
-      setErrorMessage('🌐 Cannot reach speech service. Please check your internet connection and try again.');
-      return;
-    }
-    
-    if (!recognitionRef.current) {
-      setErrorMessage('❌ Speech recognition not available. Please use the text box to type your journal entry.');
-      return;
-    }
+  // Test connection to speech service
+  try {
+    await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
+  } catch (error) {
+    setErrorMessage('🌐 Cannot reach speech service. Please check your internet connection and try again.');
+    return;
+  }
+  
+  if (!recognitionRef.current) {
+    setErrorMessage('❌ Speech recognition not available. Please use the text box to type your journal entry.');
+    return;
+  }
 
-    if (isRecording) {
-      return;
-    }
+  if (isRecording) {
+    return;
+  }
 
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      setTranscript('');
-      setErrorMessage('');
-      recognitionRef.current.start();
-    } catch (error) {
-      console.error('Microphone error:', error);
-      if (error.name === 'NotAllowedError') {
-        setErrorMessage('❌ Microphone access denied. Please allow microphone access in your browser settings.');
-      } else {
-        setErrorMessage('❌ Could not access microphone. You can still type your journal entry.');
-      }
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    setTranscript('');
+    setErrorMessage('');
+    recognitionRef.current.start();
+  } catch (error) {
+    console.error('Microphone error:', error);
+    if (error.name === 'NotAllowedError') {
+      setErrorMessage('❌ Microphone access denied. Please allow microphone access in your browser settings.');
+    } else {
+      setErrorMessage('❌ Could not access microphone. You can still type your journal entry.');
     }
-  };
+  }
+};
 
-  // REMOVE the recognition.onend from here - it was in the wrong place!
+recognition.onend = () => {
+  console.log('Recognition ended');
+  setIsRecording(false);
+};
 
   const stopRecording = () => {
-    if (recognitionRef.current && isRecording) {
-      try {
-        recognitionRef.current.stop();
-        setIsRecording(false); // Immediately update UI
-      } catch (e) {
-        console.error('Error stopping recognition:', e);
-        setIsRecording(false); // Still reset state on error
-      }
+  if (recognitionRef.current && isRecording) {
+    try {
+      recognitionRef.current.stop();
+      setIsRecording(false); // Immediately update UI
+    } catch (e) {
+      console.error('Error stopping recognition:', e);
+      setIsRecording(false); // Still reset state on error
     }
-  };
+  }
+};
 
   const saveEntry = async () => {
     if (!transcript.trim()) return;
@@ -1017,7 +1003,7 @@ function VoiceJournal() {
       });
 
       if (response.ok) {
-        await response.json();
+        const data = await response.json();
         
         // Add to local state immediately
         const newEntry = {
