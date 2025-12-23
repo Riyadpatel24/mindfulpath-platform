@@ -16,18 +16,18 @@ const userdataRoutes = require("./routes/userdata");
 
 const app = express();
 
-// CORS - Allow both production and development origins
-const allowedOrigins = [
-  "https://mindfulpath-platform.vercel.app",
-  "https://mindfulpath-platform.onrender.com",
-];
-
+// CORS - Allow Vercel preview URLs, production, and localhost
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Allow any vercel.app domain, Render domain, or localhost
+    if (
+      origin.includes('vercel.app') || 
+      origin === 'https://mindfulpath-platform.onrender.com' ||
+      origin === 'http://localhost:3000'
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
