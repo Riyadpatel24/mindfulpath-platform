@@ -2,45 +2,43 @@ const router = require('express').Router();
 const passport = require('passport');
 
 router.get('/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: 'https://mindfulpath-platform.vercel.app' }),
-    (req, res) => {
-        // Redirect to frontend with success flag
-        res.redirect('https://mindfulpath-platform.vercel.app?login=success');
-    }
+  passport.authenticate('google', {
+    failureRedirect: 'https://mindfulpath-platform.vercel.app'
+  }),
+  (req, res) => {
+    res.redirect('https://mindfulpath-platform.vercel.app?login=success');
+  }
 );
 
-router.get('/logout', (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      console.error('Logout error:', err);
-      return res.status(500).json({ message: 'Logout failed' });
-    }
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('Session destroy error:', err);
-      }
-      res.clearCookie('connect.sid');
-      res.json({ message: 'Logged out successfully' });
-    });
+router.get('/user', (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+
+  res.json({
+    id: req.user._id,
+    name: req.user.name,
+    email: req.user.email,
+    profilePic: req.user.profilePic,
+    bio: req.user.bio
   });
 });
 
-router.get('/user', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({
-      id: req.user._id,
-      googleId: req.user.googleId,
-      email: req.user.email,
-      name: req.user.name,
-      profilePic: req.user.profilePic
+router.get('/logout', (req, res) => {
+  req.logout(() => {
+    req.session.destroy(() => {
+      res.clearCookie('connect.sid', {
+        path: '/',
+        sameSite: 'none',
+        secure: true
+      });
+      res.json({ message: 'Logged out' });
     });
-  } else {
-    res.status(401).json({ message: 'Not authenticated' });
-  }
+  });
 });
 
 module.exports = router;
