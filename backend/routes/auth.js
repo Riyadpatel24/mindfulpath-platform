@@ -5,13 +5,21 @@ router.get('/google',
     passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: 'https://mindfulpath-platform.vercel.app' }),
-    (req, res) => {
-        // Redirect to frontend with success flag
-        res.redirect('https://mindfulpath-platform.vercel.app?login=success');
-    }
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: "/login",
+  }),
+  (req, res) => {
+    const redirectUrl =
+      req.headers.origin ||
+      req.headers.referer ||
+      process.env.FRONTEND_URL;
+
+    res.redirect(`${redirectUrl}?login=success`);
+  }
 );
+
 
 router.get('/logout', (req, res) => {
   req.logout((err) => {
