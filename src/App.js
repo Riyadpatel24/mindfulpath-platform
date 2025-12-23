@@ -917,6 +917,11 @@ function VoiceJournal() {
     setErrorMessage(`❌ Speech recognition error: ${event.error}. You can still type your journal entry.`);
   }
 };
+
+recognition.onend = () => {
+  console.log('Recognition ended');
+  setIsRecording(false);
+};
     recognitionRef.current = recognition;
 
     return () => {
@@ -967,11 +972,6 @@ function VoiceJournal() {
       setErrorMessage('❌ Could not access microphone. You can still type your journal entry.');
     }
   }
-};
-
-recognition.onend = () => {
-  console.log('Recognition ended');
-  setIsRecording(false);
 };
 
   const stopRecording = () => {
@@ -1671,8 +1671,11 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
   };
 
   const handleLogin = () => {
-    window.location.href = `${BACKEND_URL}/auth/google`;
-  };
+  console.log('Login clicked!');
+  console.log('BACKEND_URL:', BACKEND_URL);
+  console.log('Redirecting to:', `${BACKEND_URL}/auth/google`);
+  window.location.href = `${BACKEND_URL}/auth/google`;
+};
 
   const handleLogout = async () => {
     try {

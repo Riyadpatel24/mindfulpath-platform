@@ -42,7 +42,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'defaultsecret',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
+  store: new MongoStore({
     mongoUrl: process.env.MONGO_URI,
     touchAfter: 24 * 3600, // lazy session update (in seconds)
     crypto: {
