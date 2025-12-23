@@ -1,77 +1,61 @@
-const express = require("express");
-const cors = require("cors");
-const passport = require("passport");
-const session = require("express-session");
-const MongoStore = require('connect-mongo');
+const express = require('express');
+const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+require('dotenv').config();
 
-// Only load .env in development
-if (process.env.NODE_ENV !== 'production') {
-  require("dotenv").config();
-}
+// Load passport config
+require('./passport');
 
-require("./config/db");
-require("./passport");
-
-const authRoutes = require("./routes/auth");
-const userdataRoutes = require("./routes/userdata");
+// Load database connection
+require('./config/db');
 
 const app = express();
 
-// CORS - Allow Vercel preview URLs, production, and localhost
+// CORS Configuration
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    
-    // Allow any vercel.app domain, Render domain, or localhost
-    if (
-      origin.includes('vercel.app') || 
-      origin === 'https://mindfulpath-platform.onrender.com' ||
-      origin === 'http://localhost:3000'
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'https://mindfulpath-platform.vercel.app',
+    'http://localhost:3001'
+  ],
   credentials: true
 }));
 
-// Session configuration with MongoDB store for production
+// Body parser
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session Configuration (without MongoStore for now)
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'defaultsecret',
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
-  store: new MongoStore({
-    mongoUrl: process.env.MONGO_URI,
-    touchAfter: 24 * 3600, // lazy session update (in seconds)
-    crypto: {
-      secret: process.env.SESSION_SECRET || 'defaultsecret'
-    }
-  }),
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000 // 1 day
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
+// Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.json());
-app.use("/auth", authRoutes);
-app.use("/api", userdataRoutes);
+// Routes
+app.use('/auth', require('./routes/auth'));
+app.use('/api', require('./routes/userdata'));
 
-// Use Render's PORT or default to 5000 for local
-const PORT = process.env.PORT || 5000;
-
-app.get("/", (req, res) => {
-  res.send("MindfulPath Backend is running 🚀");
+// Test route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'MindfulPath API Running',
+    environment: process.env.NODE_ENV 
+  });
 });
 
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Backend is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Environment: ${process.env.NODE_ENV}`);
 });
