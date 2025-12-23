@@ -5,6 +5,13 @@ import './App.css';
 const API_BASE = 'http://localhost:5000/api';
 const BACKEND_URL = "https://mindfulpath-platform.onrender.com";
 
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('login') === 'success') {
+    window.location.href = '/'; // Redirect to home and trigger auth check
+  }
+}, []);
+
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
@@ -1651,31 +1658,36 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+  // Check for login redirect parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('login') === 'success') {
+    // Clean up URL (remove ?login=success from address bar)
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  
+  // Always check auth status on page load
+  checkAuthStatus();
+}, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/auth/user`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-    } finally {
-      setLoading(false);
+const checkAuthStatus = async () => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/auth/user`, {
+      credentials: 'include'
+    });
+    if (response.ok) {
+      const userData = await response.json();
+      setUser(userData);
     }
-  };
+  } catch (error) {
+    console.error('Auth check failed:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogin = () => {
-  console.log('Login clicked!');
-  console.log('BACKEND_URL:', BACKEND_URL);
-  console.log('Redirecting to:', `${BACKEND_URL}/auth/google`);
-  window.location.href = `${BACKEND_URL}/auth/google`;
-};
+    window.location.href = `${BACKEND_URL}/auth/google`;
+  };
 
   const handleLogout = async () => {
     try {
@@ -1766,26 +1778,48 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
               )}
             </div>
             
-            {/* Simple Profile Button - Desktop */}
-            {user ? (
+            {/* Profile/Login Button - Desktop */}
+            {loading ? (
+              <div className="ml-4 px-4 py-2">
+                <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : user ? (
               <button
                 onClick={() => setCurrentPage('profile')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ml-4 ${
+                  currentPage === 'profile' ? 'bg-purple-700 text-white' :
                   darkMode 
                     ? 'bg-purple-600 hover:bg-purple-700 text-white' 
                     : 'bg-purple-500 hover:bg-purple-600 text-white'
                 }`}
               >
+                {user.profilePic && (
+                  <img src={user.profilePic} alt={user.name} className="w-6 h-6 rounded-full" />
+                )}
                 <User className="w-5 h-5" />
                 <span>Profile</span>
               </button>
             ) : (
-              <button
-                onClick={handleLogin}
-                className="px-6 py-2 ml-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-semibold"
-              >
-                Login
-              </button>
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={handleLogin}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-semibold flex items-center gap-2"
+                >
+                  <User className="w-5 h-5" />
+                  <span>Login</span>
+                </button>
+                {/* Debug button - Remove after testing */}
+                <button
+                  onClick={() => {
+                    console.log('🔄 Manual auth check triggered');
+                    checkAuthStatus();
+                  }}
+                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-xs"
+                  title="Check login status"
+                >
+                  🔄
+                </button>
+              </div>
             )}
             
             {/* Theme Toggle */}
@@ -1832,9 +1866,13 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
               </button>
             ))}
             
-            {/* Mobile Profile Button */}
-            {user ? (
-              <div className={`border-t pt-4 mt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            {/* Mobile Profile/Login Button */}
+            <div className={`border-t pt-4 mt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              {loading ? (
+                <div className="flex justify-center py-3">
+                  <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : user ? (
                 <button
                   onClick={() => {
                     setCurrentPage('profile');
@@ -1844,12 +1882,13 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
                     darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
                   } text-white`}
                 >
+                  {user.profilePic && (
+                    <img src={user.profilePic} alt={user.name} className="w-6 h-6 rounded-full" />
+                  )}
                   <User className="w-5 h-5" />
-                  Your Account
+                  Profile & Account
                 </button>
-              </div>
-            ) : (
-              <div className={`border-t pt-4 mt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              ) : (
                 <button
                   onClick={() => {
                     handleLogin();
@@ -1859,8 +1898,8 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
                 >
                   Login with Google
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
