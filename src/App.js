@@ -2489,8 +2489,25 @@ function QuizSection() {
   const [answers, setAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [quizHistory, setQuizHistory] = useState([]);
+  const { darkMode } = useTheme();
 
-  const questions = [
+  // Load quiz history
+  useEffect(() => {
+    const saved = localStorage.getItem('quizHistory');
+    if (saved) {
+      try {
+        setQuizHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading quiz history');
+      }
+    }
+  }, []);
+
+  // Large pool of mental health questions
+  const questionBank = [
     {
       id: 1,
       question: "What is the '4-7-8' breathing technique used for?",
@@ -2500,7 +2517,8 @@ function QuizSection() {
         'Improving digestion',
         'Increasing heart rate'
       ],
-      correct: 1
+      correct: 1,
+      explanation: "The 4-7-8 breathing technique is specifically designed to activate the parasympathetic nervous system, helping reduce anxiety and promote relaxation."
     },
     {
       id: 2,
@@ -2511,7 +2529,8 @@ function QuizSection() {
         'Improved concentration',
         'Better sleep quality'
       ],
-      correct: 1
+      correct: 1,
+      explanation: "Persistent sadness and loss of interest (anhedonia) are hallmark symptoms of depression. Other symptoms may include fatigue, changes in appetite, and difficulty concentrating."
     },
     {
       id: 3,
@@ -2522,7 +2541,8 @@ function QuizSection() {
         'Just 5-10 minutes is enough to start',
         'Only works if done for full day'
       ],
-      correct: 2
+      correct: 2,
+      explanation: "Research shows that even 5-10 minutes of daily mindfulness practice can provide significant benefits. Consistency matters more than duration."
     },
     {
       id: 4,
@@ -2533,7 +2553,8 @@ function QuizSection() {
         'Taking actions to maintain and improve your health and well-being',
         'Avoiding all responsibilities'
       ],
-      correct: 2
+      correct: 2,
+      explanation: "Self-care is about taking deliberate actions to maintain physical, mental, and emotional health. It's necessary for overall well-being, not selfish."
     },
     {
       id: 5,
@@ -2544,9 +2565,207 @@ function QuizSection() {
         'Sleep patterns',
         'Digestion'
       ],
-      correct: 0
+      correct: 0,
+      explanation: "The fight or flight response is the body's automatic reaction to perceived threats, closely related to stress and anxiety. It triggers the release of adrenaline and cortisol."
+    },
+    {
+      id: 6,
+      question: 'Which neurotransmitter is often called the "feel-good" chemical?',
+      options: [
+        'Cortisol',
+        'Adrenaline',
+        'Serotonin',
+        'Insulin'
+      ],
+      correct: 2,
+      explanation: "Serotonin helps regulate mood, sleep, and appetite. Low serotonin levels are associated with depression and anxiety."
+    },
+    {
+      id: 7,
+      question: 'What does CBT stand for in mental health treatment?',
+      options: [
+        'Comprehensive Behavioral Therapy',
+        'Cognitive Behavioral Therapy',
+        'Clinical Brain Treatment',
+        'Certified Behavior Training'
+      ],
+      correct: 1,
+      explanation: "Cognitive Behavioral Therapy (CBT) is an evidence-based treatment that helps identify and change negative thought patterns and behaviors."
+    },
+    {
+      id: 8,
+      question: 'How much sleep do adults typically need per night for optimal mental health?',
+      options: [
+        '4-5 hours',
+        '6-7 hours',
+        '7-9 hours',
+        '10-12 hours'
+      ],
+      correct: 2,
+      explanation: "Most adults need 7-9 hours of sleep for optimal physical and mental health. Chronic sleep deprivation is linked to increased risk of depression and anxiety."
+    },
+    {
+      id: 9,
+      question: 'Which of these is a grounding technique for anxiety?',
+      options: [
+        'Ignoring the anxiety',
+        'The 5-4-3-2-1 sensory method',
+        'Drinking caffeine',
+        'Staying in bed all day'
+      ],
+      correct: 1,
+      explanation: "The 5-4-3-2-1 method (name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste) helps ground you in the present moment during anxiety."
+    },
+    {
+      id: 10,
+      question: 'What percentage of adults experience a mental health condition in their lifetime?',
+      options: [
+        'About 10%',
+        'About 25%',
+        'About 50%',
+        'About 75%'
+      ],
+      correct: 2,
+      explanation: "Research shows approximately 50% of people will experience a mental health condition at some point in their lives. Mental health issues are common and treatable."
+    },
+    {
+      id: 11,
+      question: 'Which activity is proven to reduce symptoms of depression and anxiety?',
+      options: [
+        'Watching TV all day',
+        'Regular physical exercise',
+        'Avoiding social interaction',
+        'Skipping meals'
+      ],
+      correct: 1,
+      explanation: "Regular exercise releases endorphins, improves mood, reduces stress hormones, and has been shown to be as effective as medication for mild to moderate depression in some studies."
+    },
+    {
+      id: 12,
+      question: 'What is "emotional regulation"?',
+      options: [
+        'Suppressing all emotions',
+        'Only feeling positive emotions',
+        'Managing and responding to emotions in healthy ways',
+        'Never getting angry'
+      ],
+      correct: 2,
+      explanation: "Emotional regulation is the ability to manage and respond to emotional experiences in adaptive ways, not suppressing or avoiding emotions entirely."
+    },
+    {
+      id: 13,
+      question: 'Which of these is a sign someone might need professional mental health help?',
+      options: [
+        'Feeling sad after a disappointment',
+        'Persistent feelings that interfere with daily life',
+        'Occasional stress at work',
+        'Being tired after a long day'
+      ],
+      correct: 1,
+      explanation: "When symptoms persist, intensify, or significantly interfere with daily functioning, it's important to seek professional help. Mental health treatment is most effective when started early."
+    },
+    {
+      id: 14,
+      question: 'What is "rumination" in the context of mental health?',
+      options: [
+        'A relaxation technique',
+        'Repeatedly thinking about negative thoughts or experiences',
+        'A type of meditation',
+        'Planning for the future'
+      ],
+      correct: 1,
+      explanation: "Rumination is repetitive, negative thinking about past events or worries. It's associated with increased depression and anxiety and is a target in many therapeutic approaches."
+    },
+    {
+      id: 15,
+      question: 'How does social connection impact mental health?',
+      options: [
+        'It has no real effect',
+        'It only helps extroverts',
+        'Strong social connections improve mental and physical health',
+        'Too much connection causes stress'
+      ],
+      correct: 2,
+      explanation: "Research consistently shows that strong social connections are one of the most important factors for mental well-being, comparable to not smoking and more important than exercise for longevity."
+    },
+    {
+      id: 16,
+      question: 'What is "progressive muscle relaxation"?',
+      options: [
+        'Lifting heavier weights over time',
+        'Tensing and releasing muscle groups to reduce stress',
+        'Stretching exercises',
+        'Running longer distances'
+      ],
+      correct: 1,
+      explanation: "Progressive muscle relaxation involves systematically tensing and relaxing different muscle groups to reduce physical tension and promote relaxation."
+    },
+    {
+      id: 17,
+      question: 'Which of these is true about mental health medication?',
+      options: [
+        'It changes your personality',
+        'It\'s a sign of weakness',
+        'It can be an effective part of treatment for many conditions',
+        'It\'s only for severe cases'
+      ],
+      correct: 2,
+      explanation: "Mental health medication can be highly effective for many conditions and is often most effective when combined with therapy. It's a legitimate medical treatment, not a sign of weakness."
+    },
+    {
+      id: 18,
+      question: 'What does "burnout" refer to?',
+      options: [
+        'A physical injury',
+        'State of emotional, physical, and mental exhaustion from chronic stress',
+        'Temporary tiredness',
+        'A medical emergency'
+      ],
+      correct: 1,
+      explanation: "Burnout is a state of complete mental, physical, and emotional exhaustion, often work-related. It's characterized by cynicism, detachment, and reduced effectiveness."
+    },
+    {
+      id: 19,
+      question: 'Which practice involves focusing attention on the present moment without judgment?',
+      options: [
+        'Overthinking',
+        'Worrying',
+        'Mindfulness',
+        'Multitasking'
+      ],
+      correct: 2,
+      explanation: "Mindfulness is the practice of maintaining moment-to-moment awareness of thoughts, feelings, and surroundings in a non-judgmental way."
+    },
+    {
+      id: 20,
+      question: 'What is the difference between sadness and clinical depression?',
+      options: [
+        'There is no difference',
+        'Depression is longer-lasting and more severe, affecting daily functioning',
+        'Sadness is worse than depression',
+        'Depression only affects mood'
+      ],
+      correct: 1,
+      explanation: "While sadness is a normal emotional response to loss or disappointment, clinical depression is more persistent, severe, and interferes with daily life, requiring professional treatment."
     }
   ];
+
+  // Get random questions
+  const getRandomQuestions = (count = 5) => {
+    const shuffled = [...questionBank].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, shuffled.length));
+  };
+
+  const startQuiz = (questionCount = 5) => {
+    setLoading(true);
+    // Simulate loading (you could fetch from an API here)
+    setTimeout(() => {
+      const randomQuestions = getRandomQuestions(questionCount);
+      setQuestions(randomQuestions);
+      setStarted(true);
+      setLoading(false);
+    }, 500);
+  };
 
   const handleAnswer = (optionIndex) => {
     setAnswers({ ...answers, [currentQ]: optionIndex });
@@ -2565,11 +2784,23 @@ function QuizSection() {
     questions.forEach((q, idx) => {
       if (answers[idx] === q.correct) correct++;
     });
-    setResults({
-      score: Math.round((correct / questions.length) * 100),
+    
+    const score = Math.round((correct / questions.length) * 100);
+    const resultData = {
+      score,
       correct,
-      total: questions.length
-    });
+      total: questions.length,
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString()
+    };
+    
+    setResults(resultData);
+    
+    // Save to history
+    const updatedHistory = [resultData, ...quizHistory].slice(0, 10); // Keep last 10
+    setQuizHistory(updatedHistory);
+    localStorage.setItem('quizHistory', JSON.stringify(updatedHistory));
+    
     setShowResults(true);
   };
 
@@ -2579,52 +2810,128 @@ function QuizSection() {
     setAnswers({});
     setShowResults(false);
     setResults(null);
+    setQuestions([]);
   };
 
-  if (!started) {
+  // Start screen
+  if (!started && !loading) {
     return (
       <div className="max-w-2xl mx-auto space-y-8">
         <div className="text-center space-y-4">
           <Award className="w-20 h-20 text-purple-600 mx-auto" />
-          <h1 className="text-4xl font-bold text-gray-800">Mental Health Quiz</h1>
-          <p className="text-xl text-gray-600">
-            Test your knowledge and learn more about mental wellness
+          <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Mental Health Quiz</h1>
+          <p className={`text-xl ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            Test your knowledge with unlimited random questions
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 space-y-6`}>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-6 h-6 text-green-500" />
-              <span className="text-gray-700">5 multiple-choice questions</span>
+              <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>20+ questions in the database</span>
             </div>
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-6 h-6 text-green-500" />
-              <span className="text-gray-700">Learn from detailed explanations</span>
+              <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Random selection each time</span>
             </div>
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-6 h-6 text-green-500" />
-              <span className="text-gray-700">Track your progress</span>
+              <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Detailed explanations for each answer</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="w-6 h-6 text-green-500" />
+              <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Track your quiz history</span>
             </div>
           </div>
 
-          <button
-            onClick={() => setStarted(true)}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold text-lg hover:shadow-lg transition-all"
-          >
-            Start Quiz
-          </button>
+          <div className="space-y-3">
+            <h3 className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Choose Quiz Length:</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => startQuiz(5)}
+                className="py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              >
+                Quick Quiz (5 questions)
+              </button>
+              <button
+                onClick={() => startQuiz(10)}
+                className="py-4 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              >
+                Standard (10 questions)
+              </button>
+            </div>
+            <button
+              onClick={() => startQuiz(20)}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+            >
+              Full Quiz (20 questions)
+            </button>
+          </div>
+        </div>
+
+        {/* Quiz History */}
+        {quizHistory.length > 0 && (
+          <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+            <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              📊 Your Recent Scores
+            </h2>
+            <div className="space-y-3">
+              {quizHistory.map((entry, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-center justify-between p-4 rounded-lg ${
+                    darkMode ? 'bg-gray-900' : 'bg-gray-50'
+                  }`}
+                >
+                  <div>
+                    <div className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                      {entry.correct}/{entry.total} correct
+                    </div>
+                    <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {entry.date} at {entry.time}
+                    </div>
+                  </div>
+                  <div className={`text-3xl font-bold ${
+                    entry.score >= 80 ? 'text-green-500' :
+                    entry.score >= 60 ? 'text-yellow-500' :
+                    'text-red-500'
+                  }`}>
+                    {entry.score}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Loading screen
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-12 text-center`}>
+          <div className="animate-spin w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className={`text-xl ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Preparing your quiz...
+          </p>
         </div>
       </div>
     );
   }
 
+  // Results screen
   if (showResults) {
+    const emoji = results.score >= 80 ? '🎉' : results.score >= 60 ? '👍' : '💪';
+    const message = results.score >= 80 ? 'Excellent!' : results.score >= 60 ? 'Good job!' : 'Keep learning!';
+
     return (
       <div className="max-w-2xl mx-auto space-y-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8 text-center space-y-6">
-          <Award className="w-20 h-20 text-purple-600 mx-auto" />
-          <h1 className="text-4xl font-bold text-gray-800">Quiz Complete!</h1>
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 text-center space-y-6`}>
+          <div className="text-6xl">{emoji}</div>
+          <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{message}</h1>
           
           <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-8">
             <div className="text-6xl font-bold mb-2">{results.score}%</div>
@@ -2634,59 +2941,87 @@ function QuizSection() {
           </div>
 
           <div className="text-left space-y-4">
-            <h2 className="text-2xl font-bold">Your Performance</h2>
-            {questions.map((q, idx) => (
-              <div
-                key={q.id}
-                className={`p-4 rounded-lg ${
-                  answers[idx] === q.correct ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'
-                }`}
-              >
-                <div className="font-semibold mb-2">Q{idx + 1}: {q.question}</div>
-                <div className="text-sm">
-                  Your answer: {q.options[answers[idx]]}
-                  {answers[idx] !== q.correct && (
-                    <div className="mt-1 text-green-700">
-                      Correct answer: {q.options[q.correct]}
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Review Your Answers</h2>
+            {questions.map((q, idx) => {
+              const isCorrect = answers[idx] === q.correct;
+              return (
+                <div
+                  key={q.id}
+                  className={`p-4 rounded-lg ${
+                    isCorrect
+                      ? darkMode ? 'bg-green-900/30 border-green-700 border-2' : 'bg-green-50 border-2 border-green-300'
+                      : darkMode ? 'bg-red-900/30 border-red-700 border-2' : 'bg-red-50 border-2 border-red-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3 mb-2">
+                    <span className="text-2xl">{isCorrect ? '✅' : '❌'}</span>
+                    <div className="flex-1">
+                      <div className={`font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                        Q{idx + 1}: {q.question}
+                      </div>
+                      <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <strong>Your answer:</strong> {q.options[answers[idx]]}
+                      </div>
+                      {!isCorrect && (
+                        <div className={`text-sm mt-1 ${darkMode ? 'text-green-400' : 'text-green-700'} font-medium`}>
+                          <strong>Correct answer:</strong> {q.options[q.correct]}
+                        </div>
+                      )}
+                      {q.explanation && (
+                        <div className={`mt-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} italic`}>
+                          💡 {q.explanation}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <button
-            onClick={resetQuiz}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all"
-          >
-            Take Quiz Again
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={resetQuiz}
+              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all"
+            >
+              Take Another Quiz
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className={`px-6 py-4 rounded-xl font-semibold ${
+                darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+              }`}
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Quiz in progress
   const question = questions[currentQ];
   const progress = ((currentQ + 1) / questions.length) * 100;
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 space-y-6`}>
         <div className="flex justify-between items-center mb-4">
-          <span className="text-sm font-semibold text-gray-600">
+          <span className={`text-sm font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Question {currentQ + 1} of {questions.length}
           </span>
           <span className="text-sm font-semibold text-purple-600">{Math.round(progress)}%</span>
         </div>
 
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className={`w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
           <div
             className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-800">{question.question}</h2>
+        <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{question.question}</h2>
 
         <div className="space-y-3">
           {question.options.map((option, idx) => (
@@ -2695,9 +3030,13 @@ function QuizSection() {
               onClick={() => handleAnswer(idx)}
               className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
                 answers[currentQ] === idx
-                  ? 'border-purple-500 bg-purple-50 font-semibold'
+                  ? darkMode
+                    ? 'border-purple-500 bg-purple-900/30 font-semibold'
+                    : 'border-purple-500 bg-purple-50 font-semibold'
+                  : darkMode
+                  ? 'border-gray-700 hover:border-purple-400 hover:bg-purple-900/20'
                   : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-              }`}
+              } ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}
             >
               {option}
             </button>
@@ -2705,20 +3044,22 @@ function QuizSection() {
         </div>
 
         <button
-          onClick={handleNext}
+          onClick={currentQ < questions.length - 1 ? handleNext : calculateResults}
           disabled={answers[currentQ] === undefined}
           className={`w-full py-4 rounded-xl font-semibold transition-all ${
             answers[currentQ] !== undefined
               ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-300 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {currentQ < questions.length - 1 ? 'Next Question' : 'See Results'}
+          {currentQ < questions.length - 1 ? 'Next Question →' : 'See Results 🎯'}
         </button>
       </div>
     </div>
   );
 }
+
+export { QuizSection };
 
 function TodoSection() {
   const [todos, setTodos] = useState([]);
@@ -3401,6 +3742,1335 @@ function ProfilePage() {
     </div>
   );
 }
+
+function AchievementSystem() {
+  const [achievements, setAchievements] = useState([]);
+  const [streaks, setStreaks] = useState({
+    mood: { current: 0, best: 0, lastDate: null },
+    journal: { current: 0, best: 0, lastDate: null },
+    breathing: { current: 0, best: 0, lastDate: null }
+  });
+  const { darkMode } = useTheme();
+
+  // Define all possible achievements
+  const allAchievements = [
+    // Streak Achievements
+    { id: 'mood_3day', title: 'Getting Started', description: '3-day mood tracking streak', icon: '🔥', type: 'mood', requirement: 3, earned: false },
+    { id: 'mood_7day', title: 'Week Warrior', description: '7-day mood tracking streak', icon: '⭐', type: 'mood', requirement: 7, earned: false },
+    { id: 'mood_30day', title: 'Monthly Master', description: '30-day mood tracking streak', icon: '👑', type: 'mood', requirement: 30, earned: false },
+    
+    { id: 'journal_3day', title: 'Journal Beginner', description: '3-day journaling streak', icon: '📝', type: 'journal', requirement: 3, earned: false },
+    { id: 'journal_7day', title: 'Consistent Writer', description: '7-day journaling streak', icon: '✍️', type: 'journal', requirement: 7, earned: false },
+    { id: 'journal_30day', title: 'Journaling Pro', description: '30-day journaling streak', icon: '📚', type: 'journal', requirement: 30, earned: false },
+    
+    { id: 'breathing_3day', title: 'Breath Novice', description: '3-day breathing practice streak', icon: '🌬️', type: 'breathing', requirement: 3, earned: false },
+    { id: 'breathing_7day', title: 'Calm Seeker', description: '7-day breathing practice streak', icon: '🧘', type: 'breathing', requirement: 7, earned: false },
+    { id: 'breathing_30day', title: 'Zen Master', description: '30-day breathing practice streak', icon: '☮️', type: 'breathing', requirement: 30, earned: false },
+    
+    // First Time Achievements
+    { id: 'first_mood', title: 'First Reflection', description: 'Track your first mood', icon: '🎯', type: 'first', requirement: 1, earned: false },
+    { id: 'first_journal', title: 'First Entry', description: 'Write your first journal entry', icon: '📖', type: 'first', requirement: 1, earned: false },
+    { id: 'first_breathing', title: 'First Breath', description: 'Complete your first breathing exercise', icon: '💨', type: 'first', requirement: 1, earned: false },
+    
+    // Milestone Achievements
+    { id: 'mood_10', title: 'Mood Tracker', description: 'Track 10 moods', icon: '📊', type: 'count', requirement: 10, earned: false },
+    { id: 'mood_50', title: 'Emotion Expert', description: 'Track 50 moods', icon: '🎓', type: 'count', requirement: 50, earned: false },
+    { id: 'mood_100', title: 'Century Club', description: 'Track 100 moods', icon: '💯', type: 'count', requirement: 100, earned: false },
+    
+    { id: 'journal_10', title: 'Regular Writer', description: 'Write 10 journal entries', icon: '📔', type: 'count', requirement: 10, earned: false },
+    { id: 'journal_50', title: 'Prolific Author', description: 'Write 50 journal entries', icon: '🏆', type: 'count', requirement: 50, earned: false },
+    
+    { id: 'goals_5', title: 'Goal Setter', description: 'Create 5 goals', icon: '🎯', type: 'count', requirement: 5, earned: false },
+    { id: 'goals_completed_10', title: 'Goal Crusher', description: 'Complete 10 goals', icon: '💪', type: 'count', requirement: 10, earned: false },
+  ];
+
+  // Load achievements and streaks from localStorage
+  useEffect(() => {
+    const savedAchievements = localStorage.getItem('achievements');
+    const savedStreaks = localStorage.getItem('streaks');
+    
+    if (savedAchievements) {
+      setAchievements(JSON.parse(savedAchievements));
+    } else {
+      setAchievements(allAchievements);
+    }
+    
+    if (savedStreaks) {
+      setStreaks(JSON.parse(savedStreaks));
+    }
+    
+    // Check and update achievements based on current data
+    checkAchievements();
+  }, []);
+
+  // Calculate if date is today
+  const isToday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // Calculate if date is yesterday
+  const isYesterday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return date.toDateString() === yesterday.toDateString();
+  };
+
+  // Update streak
+  const updateStreak = (type) => {
+    const today = new Date().toISOString();
+    const currentStreak = { ...streaks };
+    
+    if (isToday(currentStreak[type].lastDate)) {
+      // Already logged today, don't update
+      return currentStreak;
+    } else if (isYesterday(currentStreak[type].lastDate)) {
+      // Continue streak
+      currentStreak[type].current += 1;
+      currentStreak[type].best = Math.max(currentStreak[type].best, currentStreak[type].current);
+    } else {
+      // Streak broken, start new
+      currentStreak[type].current = 1;
+    }
+    
+    currentStreak[type].lastDate = today;
+    setStreaks(currentStreak);
+    localStorage.setItem('streaks', JSON.stringify(currentStreak));
+    
+    // Check for new achievements
+    checkAchievements(currentStreak);
+    
+    return currentStreak;
+  };
+
+  // Check and unlock achievements
+  const checkAchievements = (currentStreaks = streaks) => {
+    const moodHistory = JSON.parse(localStorage.getItem('moodHistory') || '[]');
+    const journalEntries = JSON.parse(localStorage.getItem('voiceJournalEntries') || '[]');
+    const goals = JSON.parse(localStorage.getItem('mentalHealthGoals') || '[]');
+    
+    let updatedAchievements = [...(achievements.length > 0 ? achievements : allAchievements)];
+    let newUnlocks = [];
+    
+    updatedAchievements = updatedAchievements.map(achievement => {
+      if (achievement.earned) return achievement;
+      
+      let shouldEarn = false;
+      
+      // Streak achievements
+      if (achievement.type === 'mood' && currentStreaks.mood.current >= achievement.requirement) {
+        shouldEarn = true;
+      } else if (achievement.type === 'journal' && currentStreaks.journal.current >= achievement.requirement) {
+        shouldEarn = true;
+      } else if (achievement.type === 'breathing' && currentStreaks.breathing.current >= achievement.requirement) {
+        shouldEarn = true;
+      }
+      
+      // First time achievements
+      if (achievement.id === 'first_mood' && moodHistory.length >= 1) shouldEarn = true;
+      if (achievement.id === 'first_journal' && journalEntries.length >= 1) shouldEarn = true;
+      
+      // Count achievements
+      if (achievement.id === 'mood_10' && moodHistory.length >= 10) shouldEarn = true;
+      if (achievement.id === 'mood_50' && moodHistory.length >= 50) shouldEarn = true;
+      if (achievement.id === 'mood_100' && moodHistory.length >= 100) shouldEarn = true;
+      if (achievement.id === 'journal_10' && journalEntries.length >= 10) shouldEarn = true;
+      if (achievement.id === 'journal_50' && journalEntries.length >= 50) shouldEarn = true;
+      if (achievement.id === 'goals_5' && goals.length >= 5) shouldEarn = true;
+      if (achievement.id === 'goals_completed_10' && goals.filter(g => g.completed).length >= 10) shouldEarn = true;
+      
+      if (shouldEarn && !achievement.earned) {
+        newUnlocks.push(achievement);
+        return { ...achievement, earned: true, earnedDate: new Date().toISOString() };
+      }
+      
+      return achievement;
+    });
+    
+    setAchievements(updatedAchievements);
+    localStorage.setItem('achievements', JSON.stringify(updatedAchievements));
+    
+    // Show notification for new achievements
+    if (newUnlocks.length > 0) {
+      newUnlocks.forEach(ach => {
+        setTimeout(() => {
+          alert(`🎉 Achievement Unlocked!\n\n${ach.icon} ${ach.title}\n${ach.description}`);
+        }, 300);
+      });
+    }
+  };
+
+  // Expose function to be called from other components
+  useEffect(() => {
+    window.updateAchievementStreak = updateStreak;
+  }, [streaks]);
+
+  const earnedAchievements = achievements.filter(a => a.earned);
+  const lockedAchievements = achievements.filter(a => !a.earned);
+  const totalAchievements = achievements.length;
+  const earnedCount = earnedAchievements.length;
+  const completionPercentage = totalAchievements > 0 ? Math.round((earnedCount / totalAchievements) * 100) : 0;
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          🏆 Achievements & Streaks
+        </h1>
+        <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+          Track your progress and unlock achievements
+        </p>
+      </div>
+
+      {/* Progress Overview */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Overall Progress
+          </h2>
+          <div className="text-right">
+            <div className="text-4xl font-bold text-purple-600">{earnedCount}/{totalAchievements}</div>
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Achievements</div>
+          </div>
+        </div>
+        <div className={`w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-4`}>
+          <div
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-4 rounded-full transition-all duration-500 flex items-center justify-center text-white text-xs font-bold"
+            style={{ width: `${completionPercentage}%` }}
+          >
+            {completionPercentage > 10 && `${completionPercentage}%`}
+          </div>
+        </div>
+      </div>
+
+      {/* Current Streaks */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="bg-gradient-to-br from-yellow-500 to-orange-500 text-white rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-5xl">🔥</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{streaks.mood.current}</div>
+              <div className="text-sm opacity-90">Day Streak</div>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-1">Mood Tracking</h3>
+          <p className="text-sm opacity-90">Best: {streaks.mood.best} days</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-5xl">📝</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{streaks.journal.current}</div>
+              <div className="text-sm opacity-90">Day Streak</div>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-1">Journaling</h3>
+          <p className="text-sm opacity-90">Best: {streaks.journal.best} days</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-teal-500 text-white rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-5xl">🧘</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{streaks.breathing.current}</div>
+              <div className="text-sm opacity-90">Day Streak</div>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-1">Breathing</h3>
+          <p className="text-sm opacity-90">Best: {streaks.breathing.best} days</p>
+        </div>
+      </div>
+
+      {/* Earned Achievements */}
+      {earnedAchievements.length > 0 && (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            ✨ Earned Achievements ({earnedAchievements.length})
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {earnedAchievements.map(achievement => (
+              <div
+                key={achievement.id}
+                className={`p-4 rounded-xl border-2 border-yellow-400 ${
+                  darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50'
+                } transform hover:scale-105 transition-all`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="text-4xl">{achievement.icon}</div>
+                  <div className="flex-1">
+                    <h3 className={`font-bold ${darkMode ? 'text-yellow-300' : 'text-yellow-900'}`}>
+                      {achievement.title}
+                    </h3>
+                    <p className={`text-sm ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                      {achievement.description}
+                    </p>
+                  </div>
+                </div>
+                {achievement.earnedDate && (
+                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Earned: {new Date(achievement.earnedDate).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Locked Achievements */}
+      {lockedAchievements.length > 0 && (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            🔒 Locked Achievements ({lockedAchievements.length})
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lockedAchievements.map(achievement => (
+              <div
+                key={achievement.id}
+                className={`p-4 rounded-xl border-2 ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700' 
+                    : 'bg-gray-50 border-gray-300'
+                } opacity-60`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="text-4xl grayscale">{achievement.icon}</div>
+                  <div className="flex-1">
+                    <h3 className={`font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {achievement.title}
+                    </h3>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {achievement.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tips */}
+      <div className={`${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+          💡 Tips to Earn Achievements
+        </h3>
+        <ul className={`space-y-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <li>• Track your mood daily to build streaks</li>
+          <li>• Write in your journal consistently</li>
+          <li>• Practice breathing exercises regularly</li>
+          <li>• Set and complete your wellness goals</li>
+          <li>• Come back every day - consistency is key!</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// Export function to update streaks from other components
+export { AchievementSystem };
+
+// Mood Calendar Heatmap Component
+function MoodCalendarHeatmap() {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [moodHistory, setMoodHistory] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const { darkMode } = useTheme();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('moodHistory');
+    if (saved) {
+      try {
+        setMoodHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading mood history');
+      }
+    }
+  }, []);
+
+  // Get calendar days for current month
+  const getCalendarDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const days = [];
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    
+    return days;
+  };
+
+  // Get mood data for a specific date
+  const getMoodForDate = (date) => {
+    if (!date) return null;
+    
+    const dateStr = date.toLocaleDateString();
+    const moods = moodHistory.filter(mood => {
+      const moodDate = new Date(mood.timestamp);
+      return moodDate.toLocaleDateString() === dateStr;
+    });
+    
+    return moods;
+  };
+
+  // Calculate average intensity for a day
+  const getAverageIntensity = (moods) => {
+    if (moods.length === 0) return 0;
+    const sum = moods.reduce((acc, mood) => acc + mood.intensity, 0);
+    return sum / moods.length;
+  };
+
+  // Get color based on average intensity
+  const getColorForIntensity = (intensity) => {
+    if (intensity === 0) return darkMode ? 'bg-gray-800' : 'bg-gray-100';
+    if (intensity <= 3) return 'bg-red-500';
+    if (intensity <= 5) return 'bg-orange-500';
+    if (intensity <= 7) return 'bg-yellow-500';
+    if (intensity <= 9) return 'bg-green-500';
+    return 'bg-emerald-500';
+  };
+
+  // Navigate months
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+  };
+
+  const days = getCalendarDays();
+  const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Calculate stats for current month
+  const monthMoods = moodHistory.filter(mood => {
+    const moodDate = new Date(mood.timestamp);
+    return moodDate.getMonth() === currentMonth.getMonth() && 
+           moodDate.getFullYear() === currentMonth.getFullYear();
+  });
+  
+  const daysTracked = new Set(monthMoods.map(m => new Date(m.timestamp).toLocaleDateString())).size;
+  const avgIntensity = monthMoods.length > 0 ? (monthMoods.reduce((acc, m) => acc + m.intensity, 0) / monthMoods.length).toFixed(1) : 0;
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          📅 Mood Calendar
+        </h1>
+        <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+          Visualize your emotional journey over time
+        </p>
+      </div>
+
+      {/* Month Stats */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <Calendar className="w-10 h-10 text-purple-500" />
+            <div>
+              <div className="text-3xl font-bold text-purple-600">{daysTracked}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Days Tracked</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <Heart className="w-10 h-10 text-pink-500" />
+            <div>
+              <div className="text-3xl font-bold text-pink-600">{monthMoods.length}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Check-ins</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-blue-500" />
+            <div>
+              <div className="text-3xl font-bold text-blue-600">{avgIntensity}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Intensity</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Navigation */}
+      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={previousMonth}
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+          >
+            <span className="text-2xl">←</span>
+          </button>
+          
+          <div className="text-center">
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              {monthName}
+            </h2>
+            <button
+              onClick={goToToday}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+            >
+              Go to Today
+            </button>
+          </div>
+          
+          <button
+            onClick={nextMonth}
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+          >
+            <span className="text-2xl">→</span>
+          </button>
+        </div>
+
+        {/* Week Day Headers */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {weekDays.map(day => (
+            <div
+              key={day}
+              className={`text-center font-semibold text-sm py-2 ${
+                darkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-2">
+          {days.map((date, index) => {
+            if (!date) {
+              return <div key={`empty-${index}`} className="aspect-square" />;
+            }
+
+            const moods = getMoodForDate(date);
+            const avgIntensity = getAverageIntensity(moods);
+            const colorClass = getColorForIntensity(avgIntensity);
+            const isToday = date.toDateString() === new Date().toDateString();
+            const dayNumber = date.getDate();
+
+            return (
+              <button
+                key={date.toISOString()}
+                onClick={() => setSelectedDay(date)}
+                className={`aspect-square rounded-lg ${colorClass} ${
+                  isToday ? 'ring-4 ring-purple-500' : ''
+                } hover:opacity-80 transition-all relative group`}
+              >
+                <div className={`absolute inset-0 flex items-center justify-center ${
+                  avgIntensity === 0 
+                    ? darkMode ? 'text-gray-500' : 'text-gray-400'
+                    : 'text-white'
+                } font-semibold`}>
+                  {dayNumber}
+                </div>
+                
+                {/* Tooltip on hover */}
+                <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 ${
+                  darkMode ? 'bg-gray-900' : 'bg-gray-800'
+                } text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10`}>
+                  {moods.length > 0 
+                    ? `${moods.length} check-in${moods.length > 1 ? 's' : ''} • Avg: ${avgIntensity.toFixed(1)}`
+                    : 'No data'
+                  }
+                </div>
+                
+                {moods.length > 1 && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-white rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-6 flex items-center justify-center gap-4 flex-wrap">
+          <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Intensity:
+          </span>
+          <div className="flex items-center gap-2">
+            <div className={`w-6 h-6 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>None</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-red-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>1-3</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-orange-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>4-5</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-yellow-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>6-7</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-green-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>8-9</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-emerald-500" />
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>10</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Day Details */}
+      {selectedDay && (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              {selectedDay.toLocaleDateString('default', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </h2>
+            <button
+              onClick={() => setSelectedDay(null)}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+            >
+              <X className={darkMode ? 'text-gray-300' : 'text-gray-600'} />
+            </button>
+          </div>
+
+          {(() => {
+            const dayMoods = getMoodForDate(selectedDay);
+            
+            if (dayMoods.length === 0) {
+              return (
+                <div className="text-center py-12">
+                  <Calendar className={`w-16 h-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+                  <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No mood entries for this day
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-4">
+                {dayMoods.map((mood, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-xl ${
+                      darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'
+                    } border-2`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-4xl">
+                          {mood.emotion === 'Happy' && '😊'}
+                          {mood.emotion === 'Sad' && '😢'}
+                          {mood.emotion === 'Anxious' && '😰'}
+                          {mood.emotion === 'Angry' && '😠'}
+                          {mood.emotion === 'Calm' && '😌'}
+                          {mood.emotion === 'Excited' && '🤩'}
+                        </span>
+                        <div>
+                          <div className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                            {mood.emotion}
+                          </div>
+                          <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Intensity: {mood.intensity}/10
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {new Date(mood.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    {mood.note && (
+                      <p className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} mt-2`}>
+                        {mood.note}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Tips */}
+      <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+          💡 Understanding Your Mood Calendar
+        </h3>
+        <ul className={`space-y-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <li>• Track your mood daily to see patterns emerge</li>
+          <li>• Brighter colors indicate higher intensity/better moods</li>
+          <li>• Click any day to see detailed entries</li>
+          <li>• Multiple check-ins per day show a white dot</li>
+          <li>• Use this to identify triggers and positive patterns</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export { MoodCalendarHeatmap };
+
+function CBTThoughtRecord() {
+  const [records, setRecords] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    situation: '',
+    thought: '',
+    feeling: '',
+    feelingIntensity: 5,
+    evidence: '',
+    alternative: '',
+    outcome: '',
+    outcomeIntensity: 5
+  });
+  const { darkMode } = useTheme();
+
+  // Load saved records from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('cbtRecords');
+    if (saved) {
+      try {
+        setRecords(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading CBT records');
+      }
+    }
+  }, []);
+
+  // Common cognitive distortions reference
+  const cognitiveDistortions = [
+    { name: 'All-or-Nothing', description: 'Seeing things in black and white categories' },
+    { name: 'Overgeneralization', description: 'Seeing a single negative event as a never-ending pattern' },
+    { name: 'Mental Filter', description: 'Picking out a single negative detail and dwelling on it' },
+    { name: 'Jumping to Conclusions', description: 'Making negative interpretations without evidence' },
+    { name: 'Catastrophizing', description: 'Expecting the worst possible outcome' },
+    { name: 'Emotional Reasoning', description: 'Assuming emotions reflect reality' },
+    { name: 'Should Statements', description: 'Criticizing yourself with "should" or "must"' },
+    { name: 'Labeling', description: 'Attaching negative labels to yourself' }
+  ];
+
+  // Handler functions
+  const handleInputChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const nextStep = () => {
+    if (currentStep < 5) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.situation.trim().length > 0;
+      case 2:
+        return formData.thought.trim().length > 0;
+      case 3:
+        return formData.feeling.trim().length > 0;
+      case 4:
+        return formData.alternative.trim().length > 0;
+      case 5:
+        return formData.outcome.trim().length > 0;
+      default:
+        return false;
+    }
+  };
+
+  const saveRecord = () => {
+    const newRecord = {
+      id: Date.now(),
+      ...formData,
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString()
+    };
+
+    const updatedRecords = [newRecord, ...records];
+    setRecords(updatedRecords);
+    localStorage.setItem('cbtRecords', JSON.stringify(updatedRecords));
+
+    // Reset form
+    setFormData({
+      situation: '',
+      thought: '',
+      feeling: '',
+      feelingIntensity: 5,
+      evidence: '',
+      alternative: '',
+      outcome: '',
+      outcomeIntensity: 5
+    });
+    setCurrentStep(1);
+    setShowForm(false);
+
+    alert('✅ Thought record saved successfully!');
+  };
+
+  const deleteRecord = (id) => {
+    if (window.confirm('Are you sure you want to delete this thought record?')) {
+      const updatedRecords = records.filter(r => r.id !== id);
+      setRecords(updatedRecords);
+      localStorage.setItem('cbtRecords', JSON.stringify(updatedRecords));
+    }
+  };
+
+  // CBT Thought Record - PART 2: Form View with Progress Bar and Steps 1-2
+// This goes after Part 1, inside the component
+
+  // Form view - when showForm is true
+  if (showForm) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            🧠 CBT Thought Record
+          </h1>
+          <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+            Challenge negative thoughts with cognitive behavioral therapy
+          </p>
+        </div>
+
+        {/* Progress Bar */}
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
+          <div className="flex items-center justify-between mb-4">
+            <span className={`text-sm font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Step {currentStep} of 5
+            </span>
+            <span className="text-sm font-semibold text-purple-600">{(currentStep / 5 * 100).toFixed(0)}%</span>
+          </div>
+          <div className={`w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-3`}>
+            <div
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${(currentStep / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Form Steps */}
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          
+          {/* STEP 1: Describe the Situation */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  1. Describe the Situation
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  What happened? When and where did it occur?
+                </p>
+              </div>
+              <textarea
+                value={formData.situation}
+                onChange={(e) => handleInputChange('situation', e.target.value)}
+                placeholder="Example: I sent a text to my friend 3 hours ago and they haven't responded..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> Be specific. Include who, what, when, where. Stick to facts, not interpretations.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Automatic Thought */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  2. What Was Your Automatic Thought?
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  What went through your mind? What did you think this meant?
+                </p>
+              </div>
+              <textarea
+                value={formData.thought}
+                onChange={(e) => handleInputChange('thought', e.target.value)}
+                placeholder="Example: They're ignoring me. They don't want to be my friend anymore. I must have said something wrong..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> Write down the thought exactly as it occurred. Don't censor or rationalize yet.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Buttons - shown on all steps */}
+          <div className="flex gap-4 mt-8">
+            {currentStep > 1 && (
+              <button
+                onClick={previousStep}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                  darkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                }`}
+              >
+                ← Previous
+              </button>
+            )}
+            
+            <button
+              onClick={() => setShowForm(false)}
+              className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                darkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={currentStep === 5 ? saveRecord : nextStep}
+              disabled={!canProceed()}
+              className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+                canProceed()
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              {currentStep === 5 ? '✓ Save Record' : 'Next →'}
+            </button>
+          </div>
+        </div>
+
+       // CBT Thought Record - PART 3 & 4: Steps 3-5 and Main List View
+// Add these steps after Step 2 in the form (inside the form div, before navigation buttons)
+
+          {/* STEP 3: Emotion & Intensity */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  3. What Did You Feel?
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Name the emotion and rate its intensity
+                </p>
+              </div>
+              
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Emotion(s):
+                </label>
+                <input
+                  type="text"
+                  value={formData.feeling}
+                  onChange={(e) => handleInputChange('feeling', e.target.value)}
+                  placeholder="Example: Anxious, sad, rejected, worried..."
+                  className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    darkMode 
+                      ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-800'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Intensity: <span className="text-purple-600 font-bold">{formData.feelingIntensity}/10</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={formData.feelingIntensity}
+                  onChange={(e) => handleInputChange('feelingIntensity', parseInt(e.target.value))}
+                  className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex justify-between text-xs mt-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Mild</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Moderate</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Intense</span>
+                </div>
+              </div>
+
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> You can have multiple emotions. Focus on the strongest one first.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Alternative Thought */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  4. Challenge Your Thought
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  What's a more balanced or realistic way to think about this?
+                </p>
+              </div>
+
+              {/* Evidence Questions */}
+              <div className={`${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'} rounded-lg p-4 space-y-2`}>
+                <p className={`font-semibold ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+                  Consider these questions:
+                </p>
+                <ul className={`text-sm space-y-1 ${darkMode ? 'text-purple-200' : 'text-purple-800'}`}>
+                  <li>• What's the evidence for and against this thought?</li>
+                  <li>• Am I jumping to conclusions?</li>
+                  <li>• What would I tell a friend in this situation?</li>
+                  <li>• Is there another way to look at this?</li>
+                  <li>• What's the worst, best, and most realistic outcome?</li>
+                </ul>
+              </div>
+
+              <textarea
+                value={formData.alternative}
+                onChange={(e) => handleInputChange('alternative', e.target.value)}
+                placeholder="Example: There could be many reasons they haven't responded - they might be busy, at work, or their phone died. Not responding to one text doesn't mean they don't want to be my friend. I'm jumping to conclusions without evidence..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+
+              <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-lg p-4`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  💡 <strong>Tip:</strong> You don't have to believe it 100%. Just find a thought that's more balanced and realistic.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Outcome */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  5. What's the Outcome?
+                </h2>
+                <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  After challenging your thought, how do you feel now?
+                </p>
+              </div>
+
+              <textarea
+                value={formData.outcome}
+                onChange={(e) => handleInputChange('outcome', e.target.value)}
+                placeholder="Example: I feel a bit calmer. Still slightly anxious, but not as convinced they're mad at me. I can wait and see what happens instead of spiraling..."
+                className={`w-full p-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none ${
+                  darkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-800'
+                }`}
+                rows="6"
+              />
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  New Emotion Intensity: <span className="text-green-600 font-bold">{formData.outcomeIntensity}/10</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={formData.outcomeIntensity}
+                  onChange={(e) => handleInputChange('outcomeIntensity', parseInt(e.target.value))}
+                  className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                />
+                <div className="flex justify-between text-xs mt-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Much Better</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Same</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Worse</span>
+                </div>
+              </div>
+
+              {formData.outcomeIntensity < formData.feelingIntensity && (
+                <div className={`${darkMode ? 'bg-green-900/30' : 'bg-green-50'} rounded-lg p-4`}>
+                  <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+                    ✅ <strong>Great work!</strong> You reduced your emotional intensity by {formData.feelingIntensity - formData.outcomeIntensity} points.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+        {/* Cognitive Distortions Reference (shown in form) */}
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8 mt-8`}>
+          <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Common Cognitive Distortions
+          </h3>
+          <div className="grid md:grid-cols-2 gap-4">
+            {cognitiveDistortions.map((distortion, idx) => (
+              <div key={idx} className={`p-3 rounded-lg ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+                <div className={`font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                  {distortion.name}
+                </div>
+                <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {distortion.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // PART 4: MAIN VIEW - Record List (when showForm is false)
+  // ============================================================
+  
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          🧠 CBT Thought Record
+        </h1>
+        <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+          Challenge negative thoughts with cognitive behavioral therapy
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <Brain className="w-10 h-10 text-purple-500" />
+            <div>
+              <div className="text-3xl font-bold text-purple-600">{records.length}</div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Records</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-green-500" />
+            <div>
+              <div className="text-3xl font-bold text-green-600">
+                {records.length > 0 
+                  ? (records.reduce((sum, r) => sum + (r.feelingIntensity - r.outcomeIntensity), 0) / records.length).toFixed(1)
+                  : '0'
+                }
+              </div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Improvement</div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-10 h-10 text-blue-500" />
+            <div>
+              <div className="text-3xl font-bold text-blue-600">
+                {records.filter(r => r.outcomeIntensity < r.feelingIntensity).length}
+              </div>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Successful</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* New Record Button */}
+      <div className="text-center">
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold text-lg hover:shadow-xl transition-all transform hover:scale-105"
+        >
+          + New Thought Record
+        </button>
+      </div>
+
+      {/* Records List */}
+      {records.length > 0 ? (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            Your Thought Records ({records.length})
+          </h2>
+          <div className="space-y-4">
+            {records.map(record => (
+              <div
+                key={record.id}
+                className={`p-6 rounded-xl border-2 ${
+                  darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
+                      {record.date} at {record.time}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Before:
+                        </span>
+                        <span className="text-lg font-bold text-red-600">
+                          {record.feelingIntensity}/10
+                        </span>
+                      </div>
+                      <span className="text-gray-400">→</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          After:
+                        </span>
+                        <span className="text-lg font-bold text-green-600">
+                          {record.outcomeIntensity}/10
+                        </span>
+                      </div>
+                      {record.outcomeIntensity < record.feelingIntensity && (
+                        <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                          ↓ {record.feelingIntensity - record.outcomeIntensity} points
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteRecord(record.id)}
+                    className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'} text-red-600`}
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-1`}>
+                      Situation:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.situation}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-1`}>
+                      Automatic Thought:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.thought}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-1`}>
+                      Feeling: {record.feeling}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-green-400' : 'text-green-700'} mb-1`}>
+                      Alternative Thought:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.alternative}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className={`text-sm font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-1`}>
+                      Outcome:
+                    </div>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {record.outcome}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-xl p-12 text-center`}>
+          <Brain className={`w-16 h-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+          <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            No thought records yet
+          </h3>
+          <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>
+            Click "New Thought Record" to start challenging your negative thoughts
+          </p>
+        </div>
+      )}
+
+      {/* What is CBT Info Section */}
+      <div className={`${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'} rounded-2xl p-8`}>
+        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+          💡 What is CBT Thought Recording?
+        </h3>
+        <div className={`space-y-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <p>
+            Cognitive Behavioral Therapy (CBT) is an evidence-based approach that helps you identify and challenge negative thought patterns.
+          </p>
+          <p className="font-semibold">How it works:</p>
+          <ul className="space-y-2 ml-4">
+            <li>• Identify the situation that triggered negative feelings</li>
+            <li>• Recognize automatic negative thoughts</li>
+            <li>• Notice the emotions and their intensity</li>
+            <li>• Challenge thoughts with evidence and alternative perspectives</li>
+            <li>• Observe how your emotions change</li>
+          </ul>
+          <p className="mt-4">
+            <strong>Research shows:</strong> Regular CBT practice can significantly reduce anxiety and depression symptoms.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { CBTThoughtRecord };
 
 function Footer() {
   return (
