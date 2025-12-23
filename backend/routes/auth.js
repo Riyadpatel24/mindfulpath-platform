@@ -2,7 +2,7 @@ const router = require('express').Router();
 const passport = require('passport');
 
 router.get('/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 router.get(
@@ -37,18 +37,17 @@ router.get('/logout', (req, res) => {
   });
 });
 
-router.get('/user', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({
-      id: req.user._id,
-      googleId: req.user.googleId,
-      email: req.user.email,
-      name: req.user.name,
-      profilePic: req.user.profilePic
+router.get('/logout', (req, res) => {
+  req.logout(() => {
+    req.session.destroy(() => {
+      res.clearCookie('connect.sid', {
+        path: '/',
+        sameSite: 'none',
+        secure: true
+      });
+      res.json({ message: 'Logged out' });
     });
-  } else {
-    res.status(401).json({ message: 'Not authenticated' });
-  }
+  });
 });
 
 module.exports = router;
