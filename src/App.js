@@ -1640,6 +1640,9 @@ function ThemedApp({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenuO
         {currentPage === 'journal' && <VoiceJournal/>}
         {currentPage === 'data' && <DataManagement/>}
         {currentPage === 'profile' && <ProfilePage />}
+        {currentPage === 'achievements' && <AchievementSystem />}
+        {currentPage === 'calendar' && <MoodCalendarHeatmap />}
+        {currentPage === 'cbt' && <CBTThoughtRecord />}
       </main>
 
       <Footer />
@@ -1708,7 +1711,10 @@ function Navigation({ currentPage, setCurrentPage, mobileMenuOpen, setMobileMenu
     { id: 'quiz', label: 'Quiz', icon: Award },
     { id: 'todos', label: 'Goals', icon: ListTodo },
     { id: 'crisis', label: 'Crisis', icon: Shield },
-    { id: 'data', label: 'Data', icon: Database }
+    { id: 'data', label: 'Data', icon: Database },
+    { id: 'achievements', label: 'Achievements', icon: Award },
+    { id: 'calendar', label: 'Mood Calendar', icon: Calendar },
+    { id: 'cbt', label: 'CBT Records', icon: Brain },
   ];
 
   const allNavItems = [...mainNavItems, ...toolsItems];
@@ -2050,6 +2056,30 @@ function HomePage({ setCurrentPage }) {
     color="pink"
     onClick={() => setCurrentPage('data')}
   />
+  <FeatureCard
+            icon={Award}
+            title="Achievements & Streaks"
+            description="Track your progress with daily streaks and unlock badges"
+            color="purple"
+            badge="NEW"
+            onClick={() => setCurrentPage('achievements')}
+          />
+          <FeatureCard
+            icon={Calendar}
+            title="Mood Calendar"
+            description="Visualize your emotional journey with an interactive heatmap"
+            color="pink"
+            badge="NEW"
+            onClick={() => setCurrentPage('calendar')}
+          />
+          <FeatureCard
+            icon={Brain}
+            title="CBT Thought Record"
+            description="Challenge negative thoughts with cognitive behavioral therapy"
+            color="blue"
+            badge="NEW"
+            onClick={() => setCurrentPage('cbt')}
+          />
 </div>
 
       {/* Stats Section */}
